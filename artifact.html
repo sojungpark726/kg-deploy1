@@ -1,0 +1,1512 @@
+<title>App Design 팀</title>
+<link rel="preload" href="fonts/PretendardVariable.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+  /* Pretendard — 함께 게시한 가변 폰트 파일 사용 */
+  @font-face {
+    font-family: "Pretendard Variable";
+    src: url("fonts/PretendardVariable.woff2") format("woff2-variations"),
+         url("fonts/PretendardVariable.woff2") format("woff2");
+    font-weight: 45 920;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  /* ── 토큰 ─────────────────────────────────────────────
+     배경 톤 B(전체 라이트) 단일 테마: 흰색과 연회색을 섹션마다 교차.
+     가이드가 라이트 전용을 지정했으므로 다크 블록 없이 모든 색을 명시.
+     메인 컬러는 강조 단어 · 핵심 숫자 · 활성 탭에만 사용. */
+  :root {
+    color-scheme: light;
+    --brand: #ff3b40;
+    --bg-white: #ffffff;
+    --bg-gray: #f5f5f7;
+    --bg-near: #fafafc;
+    --text: #1d1d1f;
+    --text-2: #6e6e73;
+    --line: #d2d2d7;
+    --shape-light: #f0f0f3;
+    --shape-gray: #e5e5ea;
+    --shape-mid: #d2d2d7;
+    --crown: #ffc53d;
+    --crown-dark: #f0a500;
+    --nav-h: 52px;
+    --gutter: 16px;
+    --max: 1080px;
+    --ease: cubic-bezier(.2, .7, .2, 1);
+  }
+  @media (min-width: 734px) { :root { --gutter: 40px; } }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    background: var(--bg-white);
+    color: var(--text);
+    line-height: 1.5;
+    /* 16px 이하 한글은 자간을 줄이면 오히려 답답해 보여 0으로 둠 (큰 제목은 각자 음수 자간 지정) */
+    letter-spacing: 0;
+    -webkit-font-smoothing: antialiased;
+    word-break: keep-all;
+    overflow-x: hidden;
+  }
+  img { display: block; max-width: 100%; }
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; border-radius: 6px; }
+
+  .wrap { width: 100%; max-width: calc(var(--max) + var(--gutter) * 2); margin: 0 auto; padding: 0 var(--gutter); }
+  section { scroll-margin-top: var(--nav-h); }
+
+  /* ── 타이포 위계 (한 서체, 크기·굵기 대비만) ───────────────────────────
+     디스플레이1 140/56 · 디스플레이2 84/38 · 제목 52/30 · 리드 36/22 · 카드 제목 24/20
+     작은 제목 20 · 본문 16 · 작게 14 · 캡션 13 (데스크톱/모바일, px) */
+  .eyebrow { font-size: 14px; font-weight: 700; letter-spacing: .04em; color: var(--text-2); margin-bottom: 14px; }
+  .h2 { font-size: clamp(30px, 4.1vw, 52px); font-weight: 700; line-height: 1.12; letter-spacing: -0.035em; }
+  .sub { font-size: clamp(17px, 1.8vw, 21px); color: var(--text-2); margin-top: 16px; font-weight: 500; }
+  .accent { color: var(--brand); }
+
+  /* ── 상단 고정 바 ──────────────────────────────────── */
+  .localnav {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50; height: var(--nav-h);
+    background: rgba(255, 255, 255, .78);
+    -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid rgba(0, 0, 0, .08);
+  }
+  .localnav .wrap { height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .localnav .brand { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
+  .localnav ul { list-style: none; display: flex; gap: 20px; }
+  .localnav ul a { font-size: 14px; color: var(--text-2); transition: opacity .2s; white-space: nowrap; }
+  .localnav ul a:hover { opacity: .6; }
+  @media (min-width: 734px) { .localnav ul { gap: 28px; } }
+
+  /* ── 1. 히어로 ─────────────────────────────────────── */
+  /* overflow는 도형 레이어에서만 자름 → 슬로건이 히어로 밖(팀 미션)까지 내려갈 수 있음 */
+  .hero {
+    position: relative;
+    min-height: calc(100svh - var(--nav-h)); min-height: calc(100vh - var(--nav-h));
+    display: grid; place-items: center; text-align: center;
+    background: var(--bg-white); /* 팀 미션과 같은 배경 → 두 섹션이 한 무대로 이어짐 */
+  }
+  @supports (height: 100svh) { .hero { min-height: calc(100svh - var(--nav-h)); } }
+  /* 배경 도형: 네 모서리 그룹(SVG)으로 나눠 각 도형을 따로 움직임.
+     원본 일러스트(1536×1024) 좌표를 그대로 쓰고, 1단위 = max(가로/1536, 세로/2048)로 화면에 맞춤
+     → 가로 화면에서는 원본과 같은 구도, 세로(모바일) 화면에서는 도형이 모서리에 모이고 가운데가 비워짐 */
+  /* 좌우·위는 잘라내고 아래쪽은 열어 둠(clip-path) → 아래 도형이 히어로 경계에서 수평으로 잘리지 않고
+     팀 미션 쪽으로 자연스럽게 이어짐. 스크롤하면 JS가 모서리 그룹을 바깥으로 흩어 비켜나게 함 */
+  .shapes {
+    position: absolute; inset: 0; pointer-events: none;
+    clip-path: inset(0 0 -100vh 0);
+    --u: max(calc(100vw / 1536), calc(100vh / 2048));
+  }
+  @supports (height: 100svh) { .shapes { --u: max(calc(100vw / 1536), calc(100svh / 2048)); } }
+  .shapes svg { position: absolute; overflow: visible; height: auto; }
+  .shapes .tl { left: 0; top: 0; width: calc(var(--u) * 540); transform-origin: 0 0; }
+  .shapes .tr { right: 0; top: 0; width: calc(var(--u) * 561); transform-origin: 100% 0; }
+  .shapes .bl { left: 0; bottom: 0; width: calc(var(--u) * 500); transform-origin: 0 100%; }
+  .shapes .br { right: 0; bottom: 0; width: calc(var(--u) * 676); transform-origin: 100% 100%; }
+  /* 도형 색: 빨강 2개(오른쪽 아래 큰 원 = 주인공, 오른쪽 위 둥근 마름모) + 회색 3단계 */
+  .f-red { fill: var(--brand); }
+  .f-light { fill: var(--shape-light); }
+  .f-gray { fill: var(--shape-gray); }
+  .f-mid { fill: var(--shape-mid); }
+  /* --px/--py: 화면 비율별 위치 보정, --fx/--fy/--fr: 등장 시작 위치 */
+  .shape { transform-box: fill-box; transform-origin: center; }
+  .shape { transform: translate(var(--px, 0px), var(--py, 0px)); }
+  /* 세로 화면: 도형이 모서리에 모이며 겹치는 부분을 벌려 줌 (단위는 원본 일러스트 좌표) */
+  @media (max-aspect-ratio: 4/5) {
+    .shapes .bl .pill { --px: -100px; }
+    .shapes .br .big { --px: 130px; --py: 40px; }
+  }
+  /* R-8-1 커서 반응 패턴: 배경 → 패턴(canvas) → 배경 도형(SVG) → 텍스트 순서 */
+  /* 패턴은 히어로 위쪽부터 팀 미션 아래쪽까지 이어짐(높이는 JS가 맞춤). 팀 미션 내용(.wrap)은 그 위에 그려짐 */
+  .pattern { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+  .mission > .wrap { position: relative; z-index: 1; }
+  /* R-8-3 슬로건 기울기: 글자 단위 span, 기준점은 왼쪽 아래(바닥선 고정). 단어 안에서는 줄바꿈 금지 */
+  .w { white-space: nowrap; }
+  .ch { display: inline-block; transform-origin: 0 100%; }
+  /* 텍스트 대비 확보용 중앙 하이라이트 */
+  .hero::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse 52% 34% at 50% 50%, rgba(255,255,255,.88), rgba(255,255,255,0) 72%);
+  }
+  /* z-index: 슬로건이 팀 미션 섹션 위로 내려갈 때 그 배경보다 위에 그려지도록 */
+  .hero-copy { position: relative; z-index: 2; padding: 0 var(--gutter); }
+  .hero-logo { display: block; width: clamp(96px, 8.5vw, 124px); height: auto; margin: 0 auto; }
+  .hero h1 {
+    font-size: clamp(56px, 11vw, 140px); font-weight: 800; line-height: .98;
+    letter-spacing: -0.055em;
+    /* 요소 간격 (가이드 1번 표): 로고 ↔ 팀 이름 20→28px, 팀 이름 ↔ 슬로건 38→50px (모바일 375px → 데스크톱 1280px 사이 비례) */
+    margin: clamp(20px, calc(16.7px + 0.884vw), 28px) 0 clamp(38px, calc(33px + 1.326vw), 50px);
+  }
+  /* 제목 글자 마스크: 각 글자를 감싼 .mk가 잘라내는 틀. 위아래·좌우로 여유(padding)를 주고 같은 크기의
+     음수 margin으로 상쇄해, 줄 높이와 글자 간격은 그대로 두면서 g·p 꼬리와 글자 가장자리가 잘리지 않게 함 */
+  /* .mtitle = 큰 제목 공통 체계 (히어로 제목, 주요 업무·팀원 소개 제목) */
+  .mtitle .mk {
+    display: inline-block; overflow: hidden; vertical-align: top;
+    padding: .1em .12em .3em; margin: -.1em -.12em -.3em;
+  }
+  .mtitle .c { display: inline-block; }
+  .mtitle .ich { position: relative; display: inline-block; }
+  /* i 점 자리의 빨간 마름모 (정사각형을 45° 돌림, 꼭짓점 사이 약 0.23em).
+     위치는 원래 i 점 중심에 맞춤: 음수 자간 때문에 글자 칸 중심보다 i 기둥이 (자간의 절반만큼) 오른쪽에 있고,
+     세로 위치는 제목의 행간에 따라 달라지므로 제목마다 --idot-x / --idot-top 으로 보정 */
+  .mtitle .idot {
+    position: absolute; left: calc(50% + var(--idot-x, .0275em)); top: var(--idot-top, .09em);
+    width: .16em; height: .16em; border-radius: .015em; background: var(--brand);
+    transform: translate(-50%, 0) rotate(45deg);
+  }
+  .h2.mtitle { --idot-x: .0175em; --idot-top: .16em; }
+  /* 슬로건: 두 구절(.m)이 각각 팀 미션 제목의 한 줄로 이동.
+     글꼴 굵기·자간·행간을 미션 제목과 같은 비율로 맞춰, 크기만 키우면 정확히 겹치게 함 */
+  .hero-slogan { font-size: clamp(22px, 2.8vw, 36px); font-weight: 800; letter-spacing: -0.05em; line-height: 1.08; }
+  .hero-slogan .m { display: inline-block; transform-origin: 0 0; }
+  /* 강조 단어: 검정 글자 위에 같은 글자의 빨강을 겹쳐, 내려가는 도중에 빨강이 서서히 덮도록 (opacity만 사용) */
+  .acc { position: relative; display: inline-block; }
+  .acc .red { position: absolute; left: 0; top: 0; color: var(--brand); opacity: var(--pc, 0); }
+
+  /* ── 2. 미션 & 핵심 가치 ─────────────────────────────── */
+  .mission { background: var(--bg-white); padding: clamp(110px, 16vw, 200px) 0; text-align: center; }
+  .mission .statement {
+    font-size: clamp(38px, 6.6vw, 84px); font-weight: 800; line-height: 1.08; letter-spacing: -0.05em;
+  }
+  .mission .statement .line { display: block; }
+  .mission .statement .t { display: inline-block; }
+  .values {
+    list-style: none; display: grid; gap: 16px; margin-top: clamp(72px, 10vw, 128px); text-align: left;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 734px) { .values { grid-template-columns: repeat(3, 1fr); gap: 20px; } }
+  .value {
+    position: relative; isolation: isolate;
+    background: var(--bg-gray); border-radius: 28px; padding: 24px 28px 30px;
+    display: flex; flex-direction: column; min-width: 0;
+    transition: transform .35s var(--ease);
+  }
+  /* hover: 업무 카드와 같이 6px 떠오름 (배경은 빨갛게) */
+  @media (hover: hover) { .value:hover { transform: translateY(-6px); } }
+  /* 아이콘 뒤 흰 둥근 바탕: 평소엔 카드색과 같아 보이지 않다가, hover로 카드가 빨개지면 흰색으로 드러나
+     아이콘의 빨간 부분이 배경에 묻히지 않게 함 */
+  .value img {
+    width: 120px; height: 120px; margin: 0 0 12px -12px;
+    border-radius: 24px; background-color: transparent; transition: background-color .25s var(--ease);
+  }
+  @media (hover: hover) { .value:hover img { background-color: var(--bg-white); } }
+  .value h3 { font-size: 24px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.25; text-wrap: balance; }
+  .value p { margin-top: 8px; font-size: 16px; color: var(--text-2); line-height: 1.65; }
+  /* 모바일: 아이콘을 왼쪽에 둔 가로형으로 줄여 세로 길이를 아낌 */
+  @media (max-width: 733px) {
+    .value { flex-direction: row; align-items: center; gap: 14px; padding: 18px 20px 18px 14px; border-radius: 24px; }
+    .value img { width: 80px; height: 80px; margin: 0; flex: none; border-radius: 18px; }
+    .value h3 { font-size: 20px; }
+    .value p { margin-top: 4px; }
+  }
+
+  /* ── 3. 주요 업무 (가로 스와이프 카드) ───────────────── */
+  .work { background: var(--bg-gray); padding: clamp(96px, 13vw, 160px) 0 clamp(80px, 10vw, 120px); }
+  /* R-8-2 자동전환 갤러리: 트랙을 translateX로 이동(0.6초 ease-out), 손가락·마우스 드래그로 넘김.
+     카드 앞뒤에 복제본을 붙여 끝없이 이어지게(마지막 → 처음이 같은 방향으로 바로 이어짐).
+     왼쪽은 본문 시작선에서 잘라 이전 카드가 비치지 않게 하고, 오른쪽은 화면 끝까지 이어 보이게 함.
+     세로 스크롤은 브라우저에 맡기고(touch-action: pan-y) 가로 드래그만 갤러리가 처리 */
+  .gallery {
+    --side: max(var(--gutter), calc((100vw - var(--max)) / 2));
+    overflow: hidden; padding: clamp(40px, 6vw, 64px) 0 24px;
+    clip-path: inset(0 0 0 calc(var(--side) - 12px));
+    touch-action: pan-y; user-select: none; -webkit-user-select: none;
+  }
+  .gallery:focus-visible { outline-offset: -4px; }
+  .track {
+    display: flex; gap: 20px; padding: 0 var(--side); width: max-content;
+    transition: transform .6s cubic-bezier(.16, 1, .3, 1);
+  }
+  .track.is-dragging, .track.is-jumping { transition: none; }
+  .card img { -webkit-user-drag: none; }
+  .card {
+    position: relative; flex: 0 0 min(80vw, 340px);
+    background: var(--bg-white); border-radius: 28px; padding: 28px 28px 32px;
+    display: flex; flex-direction: column;
+    transition: transform .35s var(--ease);
+  }
+  .card::after { /* hover 그림자: opacity만 애니메이션 */
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, .10); opacity: 0; transition: opacity .35s var(--ease);
+  }
+  @media (hover: hover) {
+    .card:hover { transform: translateY(-6px); }
+    .card:hover::after { opacity: 1; }
+  }
+  .card .art { aspect-ratio: 1; margin: -4px -8px 12px; display: grid; place-items: center; }
+  .card .art img { width: 100%; height: 100%; object-fit: contain; }
+  .card h3 { font-size: 24px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.25; }
+  .card p { margin-top: 8px; font-size: 16px; color: var(--text-2); line-height: 1.65; }
+  /* 진행바: 현재 카드는 40×8 알약(5초 동안 메인 컬러로 차오름), 나머지는 8px 회색 점.
+     알약↔점 너비 변화(0.3초)는 가이드 R-8-2가 지정한 연출로, 작은 요소라 width를 직접 전환 */
+  .pager { display: flex; justify-content: center; gap: 0; margin-top: 12px; }
+  .pager button { padding: 12px 4px; } /* 버튼 자체는 누르기 쉬운 크기, 보이는 표시는 안쪽 .bar */
+  .pager .bar {
+    position: relative; display: block; width: 8px; height: 8px; border-radius: 999px;
+    background: var(--line); overflow: hidden; transition: width .3s var(--ease);
+  }
+  .pager button[aria-current="true"] .bar { width: 40px; }
+  .pager .fill {
+    position: absolute; inset: 0; background: var(--brand);
+    transform: scaleX(0); transform-origin: left;
+  }
+  .pager button:not([aria-current="true"]) .fill { opacity: 0; }
+
+  /* ── 4. 팀원 소개 (그룹 구분 없이 한 목록) ──────────────── */
+  .team { background: var(--bg-white); padding: clamp(96px, 13vw, 160px) 0; }
+  .team-head { text-align: center; }
+  .members {
+    list-style: none; display: grid; gap: 16px; margin-top: clamp(40px, 6vw, 64px);
+    grid-template-columns: repeat(2, 1fr);
+  }
+  /* 9명 → 태블릿·데스크톱은 3×3으로 마지막 줄에 혼자 남는 카드가 없게 */
+  @media (min-width: 734px) { .members { grid-template-columns: repeat(3, 1fr); gap: 20px; } }
+  .member {
+    position: relative; isolation: isolate; cursor: default;
+    background: var(--bg-gray); border-radius: 24px; padding: 28px 16px 26px; text-align: center;
+    transition: transform .35s var(--ease);
+  }
+  /* 핵심가치·팀원 카드 hover: 배경이 메인 컬러로 (빨간 막을 opacity로 덮음), 글자는 흰색.
+     팀원 카드는 키보드 포커스·모바일 탭(.is-open)일 때도 같은 상태 */
+  .value::before, .member::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+    background: var(--brand); opacity: 0; transition: opacity .25s var(--ease);
+  }
+  .value h3, .value p, .member h3, .member .role { transition: color .25s var(--ease); }
+  .member:focus-visible::before, .member.is-open::before { opacity: 1; }
+  .member:focus-visible h3, .member.is-open h3 { color: #fff; }
+  .member:focus-visible .role, .member.is-open .role { color: rgba(255, 255, 255, .88); }
+  @media (hover: hover) {
+    .value:hover::before, .member:hover::before { opacity: 1; }
+    .value:hover h3, .member:hover h3 { color: #fff; }
+    .value:hover p, .member:hover .role { color: rgba(255, 255, 255, .88); }
+  }
+  .member:hover, .member:focus-visible, .member.is-open { z-index: 3; }
+  /* 한 줄 소개 말풍선: 데스크톱은 커서·키보드 포커스, 모바일은 탭(.is-open)으로 표시 */
+  .quip {
+    position: absolute; z-index: 4; /* 팀장 왕관(z-index 2)보다 앞에 */
+    left: 50%; bottom: calc(100% - 14px); width: max-content; max-width: calc(100% + 12px);
+    padding: 10px 14px; border-radius: 14px;
+    background: var(--text); color: #fff; font-size: 14px; font-weight: 600; line-height: 1.4;
+    text-align: center; pointer-events: none;
+    opacity: 0; transform: translate(-50%, 8px);
+    transition: opacity .2s var(--ease), transform .2s var(--ease);
+  }
+  .quip::after {
+    content: ""; position: absolute; left: 50%; top: 100%; width: 12px; height: 12px;
+    background: var(--text); border-radius: 2px; transform: translate(-50%, -7px) rotate(45deg);
+  }
+  .member.is-open .quip, .member:focus-visible .quip { opacity: 1; transform: translate(-50%, 0); }
+  @media (hover: hover) { .member:hover .quip { opacity: 1; transform: translate(-50%, 0); } }
+  @media (hover: hover) { .member:hover { transform: translateY(-4px); } }
+  /* 아바타: 흰 원 위에 투명 PNG. 이미지를 불러오면 이니셜을 숨기고, 파일이 없으면 이니셜만 보임 */
+  .avatar {
+    position: relative; overflow: hidden;
+    width: 88px; height: 88px; margin: 0 auto 16px; border-radius: 50%;
+    background: var(--bg-white); display: grid; place-items: center;
+    font-size: 26px; font-weight: 700; letter-spacing: -0.04em; color: var(--text);
+  }
+  .avatar img {
+    position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    transform: scale(1.06); transform-origin: 50% 20%; opacity: 0; transition: opacity .3s ease;
+  }
+  .avatar.has-img img { opacity: 1; }
+  .avatar.has-img .ini { visibility: hidden; }
+  /* 팀장: 아바타 머리 위 왕관 (동그라미 위쪽 가장자리에 걸치도록) */
+  .crown {
+    position: absolute; left: 50%; top: 8px; z-index: 2; width: 40px; height: 30px;
+    transform: translateX(-50%); pointer-events: none;
+    filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .18));
+  }
+  .crown .c1 { fill: var(--crown); }
+  .crown .c2 { fill: var(--crown-dark); }
+  .member h3 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+  .member .role { margin-top: 4px; font-size: 14px; color: var(--text-2); }
+
+  /* ── R-8-4 마름모 커서 팔로워 ─────────────────────────────
+     주요 업무·팀원 소개 영역에서만, 작은 빨간 마름모가 커서를 살짝 늦게 따라옴(기본 커서는 그대로).
+     카드 위에서는 빈 윤곽선 마름모로 커지고, 빨개지는 팀원 카드 위에서는 흰색으로 바뀜 */
+  .cursor-dia {
+    position: fixed; left: 0; top: 0; z-index: 40; width: 0; height: 0;
+    pointer-events: none; opacity: 0; transition: opacity .25s ease;
+  }
+  .cursor-dia.is-on { opacity: 1; }
+  /* .core: 등장(톡 튀어나옴)·퇴장(작아짐) 크기 애니메이션을 거는 층 (위치는 .cursor-dia, 모양은 fill/ring) */
+  .cursor-dia .core { position: absolute; left: 0; top: 0; }
+  /* 전환 연출 "파동": 커서 자리에서 퍼져 나가는 마름모 윤곽선 */
+  .cdia-ripple {
+    position: fixed; left: 0; top: 0; z-index: 39; width: 24px; height: 24px; margin: -12px 0 0 -12px;
+    border: 2px solid var(--brand); border-radius: 3px; pointer-events: none; opacity: 0;
+  }
+  .cursor-dia .fill, .cursor-dia .ring {
+    position: absolute; left: 0; top: 0;
+    transition: transform .3s cubic-bezier(.34, 1.4, .64, 1), opacity .2s ease;
+  }
+  .cursor-dia .fill {
+    width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 1px;
+    background: var(--brand); transform: rotate(45deg);
+  }
+  .cursor-dia .ring {
+    width: 17px; height: 17px; margin: -8.5px 0 0 -8.5px; border-radius: 2px;
+    border: 2px solid var(--brand); transform: rotate(45deg) scale(.3); opacity: 0;
+  }
+  .cursor-dia.is-card .fill { transform: rotate(45deg) scale(0); opacity: 0; }
+  .cursor-dia.is-card .ring { transform: rotate(45deg) scale(1); opacity: 1; }
+  .cursor-dia.is-red .ring { border-color: #fff; }
+
+  /* ── 푸터 (미니 인덱스) ─────────────────────────────── */
+  footer { background: var(--bg-gray); padding: 40px 0 48px; font-size: 13px; color: var(--text-2); }
+  footer nav ul { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 24px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+  footer nav a:hover { color: var(--text); }
+  footer .meta { margin-top: 16px; }
+
+  /* ── 모션 (강도 1: 페이드업 · 순차 등장 · hover) ─────────
+     JS가 켜져 있고 '동작 줄이기'가 꺼져 있을 때만 숨김 상태로 시작.
+     등장 방식은 하나(아래에서 위로 페이드)로 통일하고, 요소 크기에 따라 강도만 조절:
+       .reveal--lg  큰 제목    14px · 0.9s (무게감)
+       .reveal      카드·본문  28px · 0.7s (기본)
+       .reveal--sm  작은 라벨  이동 없음 · 0.5s
+     요소가 화면 아래로 완전히 빠져나가면 숨김 상태로 되돌려, 다시 내려올 때마다 재생.
+     등장이 끝나면 .is-done 이 붙어 지연 없는 짧은 transition으로 바뀜(hover 즉시 반응). */
+  .reveal { --rv-y: 28px; --rv-dur: .7s; }
+  .reveal--lg { --rv-y: 14px; --rv-dur: .9s; }
+  .reveal--sm { --rv-y: 0px; --rv-dur: .5s; }
+  .motion .reveal {
+    opacity: 0; transform: translate3d(0, var(--rv-y), 0);
+    transition: opacity var(--rv-dur) var(--ease), transform var(--rv-dur) var(--ease);
+    transition-delay: var(--rv-delay, calc(var(--i, 0) * 120ms));
+  }
+  /* 위에서 들어오는 경우(스크롤을 올릴 때): 같은 문법을 위아래로 뒤집어 위에서 내려옴 */
+  .motion .reveal.from-top:not(.is-in) { transform: translate3d(0, calc(var(--rv-y) * -1), 0); }
+  .motion .reveal.is-in { opacity: 1; transform: none; }
+
+  /* 카드 리빌 (핵심가치·업무·팀원 카드): 카드는 40px 아래에서 올라오며 96% → 100%로 커지고,
+     안쪽 내용(.rv-item: 아이콘·제목·설명)은 카드보다 조금 늦게 60ms 간격으로 차례로 올라옴.
+     숨길 때는 전환 없이 즉시, 나타날 때만 애니메이션 */
+  .rv-card { --rv-y: 40px; }
+  .motion .reveal.rv-card:not(.is-in) { transform: translate3d(0, var(--rv-y), 0) scale(.96); }
+  .motion .reveal.rv-card.from-top:not(.is-in) { transform: translate3d(0, calc(var(--rv-y) * -1), 0) scale(.96); }
+  .motion .rv-card .rv-item { opacity: 0; transform: translateY(24px); }
+  .motion .rv-card.from-top:not(.is-in) .rv-item { transform: translateY(-24px); }
+  .motion .rv-card.is-in .rv-item {
+    opacity: 1; transform: none;
+    transition: opacity .5s ease calc(var(--rv-delay, calc(var(--i, 0) * 120ms)) + 150ms + var(--k, 0) * 60ms),
+                transform .6s cubic-bezier(.16, 1, .3, 1) calc(var(--rv-delay, calc(var(--i, 0) * 120ms)) + 150ms + var(--k, 0) * 60ms),
+                color .25s var(--ease), background-color .25s var(--ease); /* hover 색 전환 유지 */
+  }
+  .motion .reveal.is-in.is-done {
+    transition: opacity .35s var(--ease), transform .35s var(--ease);
+    transition-delay: 0s;
+  }
+  @media (hover: hover) {
+    .motion .card.reveal.is-in:hover, .motion .value.reveal.is-in:hover { transform: translateY(-6px); }
+    .motion .member.reveal.is-in:hover { transform: translateY(-4px); }
+  }
+
+  /* 히어로: 도형들이 가까운 화면 밖에서 차례로 들어와 제자리에 멈추고(별은 고정),
+     그 위로 문구가 차례로 등장. 뒤 도형은 먼저·짧게, 앞 도형은 늦게·멀리서 → 깊이감.
+     히어로가 화면 위로 사라졌다가 맨 위로 돌아오면 다시 재생. */
+  .motion .hero .shape {
+    transform: translate(calc(var(--px, 0px) + var(--fx, 0px)), calc(var(--py, 0px) + var(--fy, 0px))) rotate(var(--fr, 0deg));
+  }
+  /* 큰 제목(.mtitle): 단어 전체 페이드 대신 글자별 마스크 리빌 (0.7초, 35ms 시차) → 마지막에 마름모가 떨어짐.
+     --t0: 제목 등장 시작 시점, --dd: 마지막 글자가 거의 올라온 시점(JS가 글자 수로 계산) */
+  .mtitle { --t0: var(--rv-delay, calc(var(--i, 0) * 120ms)); }
+  .motion .mtitle.reveal { opacity: 1; transform: none; }
+  /* 숨길 때는 즉시 제자리로(전환 없음), 나타날 때만 애니메이션 → 다시 재생할 때 매번 처음부터 깔끔하게 */
+  .motion .mtitle .c { transform: translateY(110%); }
+  .motion .mtitle.from-top:not(.is-in) .c { transform: translateY(-110%); }
+  .motion .mtitle.is-in .c {
+    transform: none;
+    transition: transform .7s cubic-bezier(.16, 1, .3, 1) calc(var(--t0) + var(--ci) * 35ms);
+  }
+  .motion .mtitle .idot { opacity: 0; transform: translate(-50%, -.7em) rotate(45deg); }
+  .motion .mtitle.is-in .idot {
+    opacity: 1; transform: translate(-50%, 0) rotate(45deg);
+    transition: opacity .15s ease calc(var(--t0) + var(--dd, 760ms)),
+                transform .5s cubic-bezier(.34, 1.56, .64, 1) calc(var(--t0) + var(--dd, 760ms));
+  }
+  /* 도형 떠다니기: 등장이 끝난 뒤(1.3초~) 각 도형이 아주 느리게 제자리 주변을 둥둥 떠다님.
+     도형을 감싼 .float 층에만 걸어 등장(.shape)·흩어짐(svg) 변형과 겹치지 않음. 도형마다 주기·방향이 달라 따로 움직임 */
+  /* --fl-k: 떠다니는 폭·기울기 전체 배율 (1.4 = 처음 값보다 40% 강하게)
+     --fl-ts: 떠다니는 주기 전체 배율 (0.75 = 처음보다 25% 빠르게, 작을수록 빠름) */
+  .shapes { --fl-k: 1.4; --fl-ts: 0.75; }
+  .float { transform-box: fill-box; transform-origin: center; }
+  .motion .hero.is-go .float {
+    animation: shape-float calc(var(--fl-t, 12s) * var(--fl-ts, 1)) ease-in-out calc(1.3s + var(--fl-d, 0s)) infinite;
+  }
+  @keyframes shape-float {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    33% { transform: translate(calc(var(--fl-x, 0px) * var(--fl-k, 1)), calc(var(--fl-y, 0px) * var(--fl-k, 1))) rotate(calc(var(--fl-r, 0deg) * var(--fl-k, 1))); }
+    66% { transform: translate(calc(var(--fl-x, 0px) * var(--fl-k, 1) * -0.6), calc(var(--fl-y, 0px) * var(--fl-k, 1) * 0.5)) rotate(calc(var(--fl-r, 0deg) * var(--fl-k, 1) * -1)); }
+  }
+  .motion .hero.is-go .shape {
+    transform: translate(var(--px, 0px), var(--py, 0px));
+    transition: transform 1.1s cubic-bezier(.16, 1, .3, 1) var(--fd, 0ms);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<nav class="localnav" aria-label="섹션 이동">
+  <div class="wrap">
+    <a class="brand" href="#top">App Design</a>
+    <ul>
+      <li><a href="#mission">미션</a></li>
+      <li><a href="#work">주요 업무</a></li>
+      <li><a href="#team">팀원</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main>
+  <!-- 1. 히어로 — 팀 이름 → 슬로건 순차 등장. (팀 존재 이유 · CTA는 가이드 미입력으로 생략) -->
+  <section class="hero" id="top">
+    <canvas class="pattern" aria-hidden="true"></canvas>
+    <div class="shapes" aria-hidden="true">
+      <svg class="tl" viewBox="0 0 540 470">
+        <g class="push"><g class="float" style="--fl-x:8px;--fl-y:-10px;--fl-t:11s;--fl-d:0s"><circle class="shape f-light" cx="10" cy="250" r="150" style="--fx:-240px;--fy:-60px;--fd:0ms"/></g></g>
+        <g class="push"><g class="float" style="--fl-x:-10px;--fl-y:8px;--fl-t:14s;--fl-d:.3s"><circle class="shape f-gray" cx="170" cy="-40" r="260" style="--fx:-360px;--fy:-300px;--fd:80ms"/></g></g>
+        <!-- 작은 빨간 둥근 마름모: 오른쪽 위 큰 마름모와 짝을 이루는 포인트 -->
+        <g class="push"><g class="float" style="--fl-x:6px;--fl-y:12px;--fl-r:6deg;--fl-t:9s;--fl-d:.1s"><g class="shape" style="--fx:-260px;--fy:-180px;--fr:-20deg;--fd:160ms">
+          <rect class="f-red" x="192.5" y="202.5" width="105" height="105" rx="18" transform="rotate(45 245 255)"/>
+        </g></g></g>
+      </svg>
+      <svg class="tr" viewBox="975 0 561 570">
+        <g class="push"><g class="float" style="--fl-x:-8px;--fl-y:10px;--fl-t:12s;--fl-d:.5s"><circle class="shape f-light" cx="1290" cy="70" r="190" style="--fx:220px;--fy:-220px;--fd:40ms"/></g></g>
+        <!-- 둥근 마름모: 패턴·제목 i 점의 마름모와 연결되는 히어로의 두 번째 빨강 -->
+        <g class="push"><g class="float" style="--fl-x:-10px;--fl-y:-8px;--fl-r:-4deg;--fl-t:13s;--fl-d:.2s"><g class="shape" style="--fx:380px;--fy:-120px;--fr:10deg;--fd:120ms">
+          <rect class="f-red" x="1320" y="20" width="300" height="300" rx="40" transform="rotate(45 1470 170)"/>
+        </g></g></g>
+      </svg>
+      <svg class="bl" viewBox="0 590 500 434">
+        <g class="push"><g class="float" style="--fl-x:10px;--fl-y:-6px;--fl-t:15s;--fl-d:.4s"><circle class="shape f-light" cx="40" cy="1093" r="430" style="--fx:-200px;--fy:260px;--fd:20ms"/></g></g>
+        <g class="push"><g class="float" style="--fl-x:12px;--fl-y:-10px;--fl-r:3deg;--fl-t:10s;--fl-d:.15s"><g class="shape pill" style="--fx:-420px;--fy:120px;--fr:-14deg;--fd:140ms">
+          <rect class="f-mid" x="161" y="793" width="300" height="100" rx="50" transform="rotate(-17 311 843)"/>
+        </g></g></g>
+      </svg>
+      <svg class="br" viewBox="860 590 676 434">
+        <g class="push"><g class="float" style="--fl-x:-8px;--fl-y:-12px;--fl-t:13.5s;--fl-d:.35s"><circle class="shape f-gray" cx="1540" cy="883" r="288" style="--fx:240px;--fy:80px;--fd:60ms"/></g></g>
+        <g class="push"><g class="float" style="--fl-x:-10px;--fl-y:6px;--fl-t:16s;--fl-d:.05s"><circle class="shape big f-red" cx="1215" cy="1080" r="350" style="--fx:300px;--fy:340px;--fd:100ms"/></g></g>
+      </svg>
+    </div>
+    <div class="hero-copy">
+      <img class="hero-logo reveal reveal--sm" style="--rv-delay:200ms" src="assets/web/logo-kigle.png" alt="Kigle" width="376" height="173">
+      <!-- 제목: 글자마다 보이지 않는 바닥선 아래에서 솟아오름(35ms 시차). "Design"의 i 점은 빨간 마름모로, 마지막에 떨어져 자리 잡음 -->
+      <h1 class="hero-title mtitle reveal reveal--lg" style="--rv-delay:320ms" aria-label="App Design"><span class="w" aria-hidden="true"><span class="mk"><span class="c" style="--ci:0">A</span></span><span class="mk"><span class="c" style="--ci:1">p</span></span><span class="mk"><span class="c" style="--ci:2">p</span></span></span> <span class="w" aria-hidden="true"><span class="mk"><span class="c" style="--ci:3">D</span></span><span class="mk"><span class="c" style="--ci:4">e</span></span><span class="mk"><span class="c" style="--ci:5">s</span></span><span class="ich"><span class="mk"><span class="c" style="--ci:6">ı</span></span><span class="idot"></span></span><span class="mk"><span class="c" style="--ci:7">g</span></span><span class="mk"><span class="c" style="--ci:8">n</span></span></span></h1>
+      <!-- 슬로건: 스크롤하면 두 구절이 커지며 내려가 팀 미션 제목(.statement)의 두 줄 자리에 안착 -->
+      <p class="hero-slogan reveal reveal--lg" style="--rv-delay:460ms" aria-hidden="true"><span class="m" data-line="1"><span class="acc">신속한<span class="red">신속한</span></span> 실행</span> <span class="m" data-line="2"><span class="acc">정확한<span class="red">정확한</span></span> 디자인</span></p>
+    </div>
+  </section>
+
+  <!-- 2. 팀 미션 & 핵심 가치 — 제목은 히어로에서 내려온 슬로건이 차지 (숫자 요약은 표시하지 않음) -->
+  <section class="mission" id="mission">
+    <div class="wrap">
+      <p class="eyebrow mission-eyebrow">팀 미션</p>
+      <h2 class="statement" aria-label="신속한 실행 정확한 디자인">
+        <span class="line"><span class="t" data-line="1"><em class="accent" style="font-style:normal">신속한</em> 실행</span></span>
+        <span class="line"><span class="t" data-line="2"><em class="accent" style="font-style:normal">정확한</em> 디자인</span></span>
+      </h2>
+      <ul class="values">
+        <li class="value reveal" style="--i:0">
+          <img src="assets/web/value-first.png" alt="" loading="lazy" width="480" height="480">
+          <div><h3>먼저 움직입니다</h3><p>기획의 의도를 먼저 파악하고 충분히 생각합니다</p></div>
+        </li>
+        <li class="value reveal" style="--i:1">
+          <img src="assets/web/value-precise.png" alt="" loading="lazy" width="480" height="480">
+          <div><h3>한번에 정확하게</h3><p>목적에 맞춘 디자인을 합니다</p></div>
+        </li>
+        <li class="value reveal" style="--i:2">
+          <img src="assets/web/value-ai.png" alt="" loading="lazy" width="480" height="480">
+          <div><h3>AI와 함께</h3><p>AI로 효율화된 디자인 체계를 생각합니다</p></div>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 3. 주요 업무 — 4개 초과 → 가로 스와이프 카드 -->
+  <section class="work" id="work">
+    <div class="wrap">
+      <p class="eyebrow reveal reveal--sm">주요 업무</p>
+      <h2 class="h2 mtitle reveal reveal--lg" style="--i:1" data-split aria-label="이런 일은 우리 팀에 맡겨주세요">이런 일은<br><span class="w"><span class="accent">우리 팀</span>에</span> 맡겨주세요</h2>
+    </div>
+    <div class="gallery" id="gallery" tabindex="0" aria-roledescription="carousel" aria-label="주요 업무 카드 (5초마다 자동으로 넘어감)">
+      <div class="track" id="track">
+      <article class="card reveal">
+        <div class="art"><img src="assets/web/icon-game.png" alt="" loading="lazy" width="640" height="640"></div>
+        <h3>게임 디자인 및 액팅</h3>
+        <p>앱 안에 포함되는 모든 요소들을 디자인하고 움직임을 줍니다.</p>
+      </article>
+      <article class="card reveal">
+        <div class="art"><img src="assets/web/icon-ip-v2.png" alt="" loading="lazy" width="640" height="640"></div>
+        <h3>IP 디자인</h3>
+        <p>키글의 새로운 IP 캐릭터를 디자인합니다.</p>
+      </article>
+      <article class="card reveal">
+        <div class="art"><img src="assets/web/icon-ads.png" alt="" loading="lazy" width="640" height="640"></div>
+        <h3>UAC / 팝업 광고 디자인</h3>
+        <p>앱 광고에 필요한 이미지를 제작합니다.</p>
+      </article>
+      <article class="card reveal">
+        <div class="art"><img src="assets/web/icon-thumbnail.png" alt="" loading="lazy" width="640" height="640"></div>
+        <h3>유튜브 썸네일</h3>
+        <p>유튜브 채널에 업로드되는 게임 영상의 썸네일을 제작합니다.</p>
+      </article>
+      <article class="card reveal">
+        <div class="art"><img src="assets/web/icon-store.png" alt="" loading="lazy" width="640" height="640"></div>
+        <h3>스토어 이미지</h3>
+        <p>구글 플레이 스토어 / 애플 앱 스토어에 등록시 필요한 이미지를 제작합니다.</p>
+      </article>
+      </div>
+    </div>
+    <div class="pager" id="pager" role="group" aria-label="업무 카드 선택"></div>
+  </section>
+
+    <!-- 4. 팀원 소개 — 리더 맨 앞, 그룹 구분 없이 한 목록, 아바타(없으면 이니셜), 한 줄 소개 말풍선(커서/탭) -->
+  <section class="team" id="team">
+    <div class="wrap">
+      <div class="team-head">
+        <p class="eyebrow reveal reveal--sm">팀원 소개</p>
+        <h2 class="h2 mtitle reveal reveal--lg" style="--i:1" data-split aria-label="App Design 사람들"><span class="accent w">App Des<span class="ich">ı<span class="idot" aria-hidden="true"></span></span>gn</span> 사람들</h2>
+      </div>
+      <ul class="members" id="members">
+        <li class="member lead reveal" tabindex="0"><svg class="crown" viewBox="0 0 40 30" aria-hidden="true"><path class="c1" d="M4 24 2 8l10 7 8-12 8 12 10-7-2 16z"/><rect class="c2" x="4" y="22.5" width="32" height="5.5" rx="2"/><circle class="c1" cx="20" cy="3.5" r="2.8"/><circle class="c1" cx="2.5" cy="8" r="2.3"/><circle class="c1" cx="37.5" cy="8" r="2.3"/></svg><div class="avatar" aria-hidden="true"><span class="ini">수민</span><img src="assets/web/avatars/han-sumin.png" alt="" loading="lazy" width="192" height="192"></div><h3>한수민</h3><p class="role">앱디자인 팀장</p><p class="quip">각지게 살자</p></li>
+        <li class="member reveal" tabindex="0"><div class="avatar" aria-hidden="true"><span class="ini">민성</span><img src="assets/web/avatars/kim-minseong.png" alt="" loading="lazy" width="192" height="192"></div><h3>김민성</h3><p class="role">앱디자인</p><p class="quip">움직여라</p></li>
+        <li class="member reveal" tabindex="0"><div class="avatar" aria-hidden="true"><span class="ini">서정</span><img src="assets/web/avatars/lee-seojeong.png" alt="" loading="lazy" width="192" height="192"></div><h3>이서정</h3><p class="role">앱디자인</p><p class="quip">인생은 쫀득하게</p></li>
+        <li class="member reveal" tabindex="0"><div class="avatar" aria-hidden="true"><span class="ini">소정</span><img src="assets/web/avatars/park-sojeong.png" alt="" loading="lazy" width="192" height="192"></div><h3>박소정</h3><p class="role">앱디자인</p><p class="quip">앱디팀의 E담당</p></li>
+        <li class="member reveal" tabindex="0"><div class="avatar" aria-hidden="true"><span class="ini">재영</span><img src="assets/web/avatars/ko-jaeyoung.png" alt="" loading="lazy" width="192" height="192"></div><h3>고재영</h3><p class="role">앱디자인</p><p class="quip">호불호 크게 없는 INFP</p></li>
+        <li class="member reveal" tabindex="0"><div class="avatar" aria-hidden="true"><span class="ini">현수</span><img src="assets/web/avatars/kim-hyunsoo.png" alt="" loading="lazy" width="192" height="192"></div><h3>김현수</h3><p class="role">앱디자인</p><p class="quip">갓생을 꿈꾸는 게으름뱅이</p></li>
+        <li class="member reveal" tabindex="0"><div class="avatar" aria-hidden="true"><span class="ini">희진</span><img src="assets/web/avatars/lee-heejin.png" alt="" loading="lazy" width="192" height="192"></div><h3>이희진</h3><p class="role">앱디자인</p><p class="quip">이너피스</p></li>
+        <li class="member reveal" tabindex="0"><div class="avatar" aria-hidden="true"><span class="ini">다정</span><img src="assets/web/avatars/joo-dajeong.png" alt="" loading="lazy" width="192" height="192"></div><h3>주다정</h3><p class="role">앱디자인+TF</p><p class="quip">집이 최고다</p></li>
+        <li class="member reveal" tabindex="0"><div class="avatar" aria-hidden="true"><span class="ini">화진</span><img src="assets/web/avatars/park-hwajin.png" alt="" loading="lazy" width="192" height="192"></div><h3>박화진</h3><p class="role">앱디자인+TF</p><p class="quip">앱디팀 중고신입(?)</p></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 팀 문화 · 협업 가이드 · 연락처 & CTA — 가이드에서 제외 -->
+</main>
+
+<footer>
+  <div class="wrap">
+    <nav aria-label="페이지 인덱스">
+      <ul>
+        <li><a href="#top">처음으로</a></li>
+        <li><a href="#mission">팀 미션</a></li>
+        <li><a href="#work">주요 업무</a></li>
+        <li><a href="#team">팀원 소개</a></li>
+      </ul>
+    </nav>
+    <p class="meta">Kigle · App Design</p>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const motion = !reduce && 'IntersectionObserver' in window;
+  const gallery = document.getElementById('gallery');
+  const list = document.getElementById('members');
+  const members = list.querySelectorAll('.member');
+
+  /* ── 조정 가능한 값 (가이드 R-8 표의 시작값) ──────────────────────
+     "R-8-3의 ○○ 값을 △△로 바꿔줘"처럼 요청하면 이 객체의 값만 바꾸면 됩니다. */
+  const CONFIG = {
+    // R-8-1 히어로 커서 반응 패턴
+    pattern: {
+      cell: 32, size: 11, grayMax: 0.55,                        // 칸 크기 · 회색 도형 크기 · 회색 도형 최대 투명도
+      diamondSize: 13, diamondRatio: 0.05,                      // 마름모 크기(꼭짓점 사이) · 마름모 비율
+      squareNoise: 0.7, noiseScale: 6,                          // 사각형 무리: 노이즈 기준값(높을수록 드묾) · 무리 크기(칸)
+      color: { circle: '#e8e8ed', square: '#d2d2d7' },          // X는 메인 컬러(--brand)
+      hoverRadius: 64, hoverGain: 0.5, decayPerSec: 0.7,        // 커서 반경 · 에너지 증가량 · 초당 감소량(작을수록 오래 남음)
+      cursorMax: 0.38,                                          // 커서 흔적의 회색 최대 투명도 (자동 물결은 grayMax로 은은하게)
+      trailColor: { circle: '#c7c7cc', square: '#aeaeb2' },     // 커서 흔적에만 쓰는 한 단계 진한 회색
+      trailGrow: 0.13,                                          // 커서가 강하게 지나간 칸의 도형 확대(최대 1.13배)
+      interpStep: 12, interpMax: 24,                            // 빠른 커서 보간 간격 · 최대 단계 (움직인 길이만큼 끊김 없이)
+      waveTimers: 3, waveEvery: [700, 2000],                    // 물결 타이머 수 · 발생 간격(ms)
+      waveRadius: [5, 12], waveSpread: 600, waveLife: [1700, 2700], // 반경(칸) · 최대 시간차 · 도형 표시 시간(ms)
+      waveCenters: 28, textDim: 0.45, seed: 20261006,            // 물결 중심 후보 수 · 글자 뒤 투명도 배율 · 고정 시드
+    },
+    // R-8-2 업무 카드 자동전환
+    carousel: { interval: 5000, swipe: 40 },                    // 전환 간격(ms) · 스와이프 인식 거리(px)
+    // 히어로 도형 밀려나기: 커서가 도형에 닿으면 반대쪽으로 살짝 밀려났다 돌아옴 (마우스 기기만)
+    push: { min: 10, max: 24, reach: 40, ease: 140 },         // 최소·최대 밀림(px, 작은 도형일수록 큼) · 가장자리 밖 반응 거리(px) · 따라가는 부드러움(ms)
+    // 히어로 도형 흩어짐 (스크롤 연동): 슬로건 전환 진행도의 앞부분 동안 모서리 그룹이 바깥으로 비켜남
+    scatter: { until: 0.5, distance: 40, shrink: 0.2 },        // 다 흩어지는 시점(진행도) · 이동 거리(%) · 줄어드는 정도
+    // R-8-4 마름모 커서 팔로워 (주요 업무·팀원 소개, 마우스 기기만)
+    follower: { lag: 70 },                                      // 따라오는 늦음 정도(ms, 클수록 느긋하게)
+    // R-8-3 미션 슬로건 기울기
+    skew: {
+      landDur: 600, landEase: [0.14, 1, 0.34, 1],               // 안착 전환 시간 / 이징
+      fastBase: -10, fastMax: -18,                              // 신속 · 기본 / 최대 기울기(°)
+      fastSens: -4,                                             // 신속 · 가로 속도 1px/ms당 기울기(°)
+      fastReturn: 250, fastLagPer100: 30,                       // 신속 · 복귀 시간(ms) · 거리 100px당 시차(ms)
+      preciseSteps: [[80, -10], [160, -5]],                     // 정확 · [반응 거리(px), 기울기(°)] (그 밖은 0°)
+      preciseSnap: 90,                                          // 정확 · 스냅 시간(ms)
+      areaPad: 80,                                              // 반응 영역: 미션 제목 + 위아래 여백(px)
+      scrollSens: -3,                                           // 모바일 · 스크롤 속도 1px/ms당 기울기(°)
+    },
+  };
+
+  // 슬로건을 한 글자씩 span으로 나눔 (R-8-3). 히어로 슬로건과 미션 제목을 똑같이 나눠야
+  // 슬로건 전환이 끝날 때 두 글자 배치가 정확히 겹침. 단어(.w) 안에서는 줄바꿈하지 않음.
+  const splitChars = (root) => {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach((node) => {
+      const frag = document.createDocumentFragment();
+      node.textContent.split(/(\s+)/).forEach((part) => {
+        if (!part) return;
+        if (/^\s+$/.test(part)) { frag.append(part); return; }
+        const w = document.createElement('span');
+        w.className = 'w';
+        for (const c of part) {
+          const s = document.createElement('span');
+          s.className = 'ch';
+          s.textContent = c;
+          w.append(s);
+        }
+        frag.append(w);
+      });
+      node.replaceWith(frag);
+    });
+  };
+  const statement = document.querySelector('.mission .statement');
+  const slogan = document.querySelector('.hero-slogan');
+  const movers = [...slogan.querySelectorAll('.m')];
+  statement.querySelectorAll('.t').forEach(splitChars);
+  movers.forEach(splitChars);
+
+  // 큰 제목(.mtitle[data-split]): 글자마다 마스크(.mk) + 글자(.c)로 감싸고 순번(--ci)을 매김.
+  // 마름모(--dd)는 마지막 글자가 거의 올라온 시점에 떨어지도록 글자 수로 계산 (히어로 제목은 직접 작성됨)
+  document.querySelectorAll('.mtitle[data-split]').forEach((title) => {
+    let ci = 0;
+    const walker = document.createTreeWalker(title, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach((node) => {
+      const frag = document.createDocumentFragment();
+      node.textContent.split(/(\s+)/).forEach((part) => {
+        if (!part) return;
+        if (/^\s+$/.test(part)) { frag.append(part); return; }
+        const w = document.createElement('span');
+        w.className = 'w';
+        w.setAttribute('aria-hidden', 'true');
+        for (const ch of part) {
+          const mk = document.createElement('span');
+          mk.className = 'mk';
+          const c = document.createElement('span');
+          c.className = 'c';
+          c.style.setProperty('--ci', ci++);
+          c.textContent = ch;
+          mk.append(c);
+          w.append(mk);
+        }
+        frag.append(w);
+      });
+      node.replaceWith(frag);
+    });
+    title.style.setProperty('--dd', `${Math.max(0, ci - 1) * 35 + 480}ms`);
+  });
+
+  // 카드 리빌 준비: 카드에 .rv-card, 안쪽 내용에 .rv-item과 순번(--k)을 매김
+  // (말풍선·왕관처럼 자체 위치 변형이 있는 요소는 제외 — 카드와 함께 나타남)
+  document.querySelectorAll('.value, .card, .member').forEach((card) => {
+    card.classList.add('rv-card');
+    [...card.children]
+      .filter((child) => !child.matches('.quip, .crown'))
+      .forEach((child, k) => { child.classList.add('rv-item'); child.style.setProperty('--k', k); });
+  });
+
+  /* ── R-8-3 미션 슬로건 기울기 ──────────────────────────────────
+     슬로건이 미션 제목 자리에 안착한 뒤에만 동작.
+     "신속한 실행": 기본 기울기 + 커서 가로 속도만큼 더 기울고 빠르게 복귀 (글자별 시차로 파도처럼)
+     "정확한 디자인": 커서와의 거리에 따라 0° / -5° / -10° 단계로만 스냅 */
+  const skew = (() => {
+    const C = CONFIG.skew;
+    const chars = (line) => [...statement.querySelectorAll(`.t[data-line="${line}"] .ch`)];
+    const fast = chars(1).map((el) => ({ el, a: 0, extra: 0, cx: 0, cy: 0 }));
+    const precise = chars(2).map((el) => ({ el, a: 0, from: 0, to: 0, t0: 0, cx: 0, cy: 0 }));
+    const set = (c, a) => { c.a = a; c.el.style.transform = a ? `skewX(${a.toFixed(2)}deg)` : ''; };
+
+    // 동작 줄이기: "신속한 실행"의 기본 기울기만 정적으로 남김
+    if (!motion) {
+      fast.forEach((c) => set(c, C.fastBase));
+      return { land() {} };
+    }
+
+    // cubic-bezier 이징 (안착 전환용)
+    const bezier = ([x1, y1, x2, y2]) => (t) => {
+      let s = t;
+      for (let i = 0; i < 8; i++) {
+        const x = 3 * (1 - s) ** 2 * s * x1 + 3 * (1 - s) * s * s * x2 + s ** 3 - t;
+        const d = 3 * (1 - s) ** 2 * x1 + 6 * (1 - s) * s * (x2 - x1) + 3 * s * s * (1 - x2);
+        if (Math.abs(x) < 1e-4 || !d) break;
+        s = Math.min(1, Math.max(0, s - x / d));
+      }
+      return 3 * (1 - s) ** 2 * s * y1 + 3 * (1 - s) * s * s * y2 + s ** 3;
+    };
+    const landEase = bezier(C.landEase);
+    const touchMode = matchMedia('(hover: none)');
+
+    // 입력: 데스크톱은 커서 가로 속도, 모바일은 스크롤 속도 (px/ms)
+    // 커서 위치는 화면 좌표로 저장하고, 매 프레임 스크롤을 더해 문서 좌표로 씀
+    // (커서를 가만히 둔 채 스크롤해도 글자와의 거리가 맞게 갱신됨)
+    let px = -1e5, pcy = -1e5, py = -1e5, speed = 0, lastMove = 0, lastX = null, lastXT = 0;
+    addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'touch') return;
+      const now = performance.now();
+      px = e.clientX; pcy = e.clientY;
+      if (lastX !== null && now > lastXT) speed = speed * 0.6 + (Math.abs(e.clientX - lastX) / (now - lastXT)) * 0.4;
+      lastX = e.clientX; lastXT = now; lastMove = now;
+    }, { passive: true });
+    let lastSY = scrollY, lastST = 0, sSpeed = 0, lastScroll = 0;
+    addEventListener('scroll', () => {
+      const now = performance.now();
+      if (lastST) sSpeed = sSpeed * 0.5 + (Math.abs(scrollY - lastSY) / Math.max(1, now - lastST)) * 0.5;
+      lastSY = scrollY; lastST = now; lastScroll = now;
+    }, { passive: true });
+
+    // 글자 중심과 반응 영역 (문서 기준 좌표)
+    let area = { l: 0, r: 0, t: 0, b: 0 };
+    const measure = () => {
+      [...fast, ...precise].forEach((c) => {
+        const r = c.el.getBoundingClientRect();
+        c.cx = r.left + r.width / 2; c.cy = r.top + scrollY + r.height / 2;
+      });
+      const r = statement.getBoundingClientRect();
+      area = { l: r.left, r: r.right, t: r.top + scrollY - C.areaPad, b: r.bottom + scrollY + C.areaPad };
+    };
+
+    let landed = false, landedAt = 0, visible = false, raf = 0, lastT = 0;
+    const hist = []; // 기울기 추가분(°)의 최근 기록 → 글자별 시차 재생용
+    const sampleAt = (t) => {
+      for (let i = hist.length - 1; i >= 0; i--) if (hist[i].t <= t) return hist[i].x;
+      return 0;
+    };
+    const frame = (now) => {
+      raf = 0;
+      if (!(landed && visible && !document.hidden)) { lastT = 0; return; }
+      const dt = lastT ? Math.min(100, now - lastT) : 16;
+      lastT = now;
+      const touch = touchMode.matches;
+      py = pcy === -1e5 ? -1e5 : pcy + scrollY;
+      const inArea = !touch && px >= area.l && px <= area.r && py >= area.t && py <= area.b;
+      if (now - lastMove > 60) speed *= Math.exp(-dt / 60);
+      if (now - lastScroll > 60) sSpeed *= Math.exp(-dt / 60);
+      hist.push({ t: now, x: touch ? C.scrollSens * sSpeed : (inArea ? C.fastSens * speed : 0) });
+      while (hist.length && now - hist[0].t > 1000) hist.shift();
+
+      const base = C.fastBase * landEase(Math.min(1, (now - landedAt) / C.landDur));
+      const k = 1 - Math.exp(-dt / (C.fastReturn / 3));
+      fast.forEach((c) => {
+        const lag = touch || !inArea ? 0 : (Math.hypot(c.cx - px, c.cy - py) / 100) * C.fastLagPer100;
+        c.extra += (sampleAt(now - lag) - c.extra) * k;
+        set(c, Math.max(C.fastMax, Math.min(0, base + c.extra)));
+      });
+      precise.forEach((c) => {
+        let step = 0;
+        if (inArea) {
+          const d = Math.hypot(c.cx - px, c.cy - py);
+          for (const [dist, deg] of C.preciseSteps) if (d <= dist) { step = deg; break; }
+        }
+        if (step !== c.to) { c.from = c.a; c.to = step; c.t0 = now; }
+        set(c, c.from + (c.to - c.from) * Math.min(1, (now - c.t0) / C.preciseSnap));
+      });
+      raf = requestAnimationFrame(frame);
+    };
+    const kick = () => { if (!raf && landed && visible && !document.hidden) raf = requestAnimationFrame(frame); };
+
+    // 안착이 풀릴 때: 제목의 현재 기울기를 히어로 슬로건 글자에 옮겨 0.3초 동안 0°로 되돌림 (튀지 않게)
+    const moverChars = movers.map((m) => ({
+      base: [...m.querySelectorAll('.ch')].filter((el) => !el.closest('.red')),
+      red: [...m.querySelectorAll('.red .ch')],
+    }));
+    const release = () => {
+      const moving = [];
+      [fast, precise].forEach((arr, li) => arr.forEach((c, j) => {
+        if (c.a) {
+          moving.push([moverChars[li].base[j], c.a]);
+          if (moverChars[li].red[j]) moving.push([moverChars[li].red[j], c.a]);
+        }
+        set(c, 0); c.extra = 0; c.from = c.to = 0;
+      }));
+      if (!moving.length) return;
+      const t0 = performance.now();
+      const step = (now) => {
+        const u = Math.min(1, (now - t0) / 300);
+        moving.forEach(([el, a]) => { el.style.transform = u < 1 ? `skewX(${(a * (1 - u) ** 2).toFixed(2)}deg)` : ''; });
+        if (u < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    };
+
+    new IntersectionObserver(([e]) => { visible = e.isIntersecting; kick(); }, { rootMargin: '100px 0px' }).observe(statement);
+    document.addEventListener('visibilitychange', kick);
+    addEventListener('resize', () => { if (landed) measure(); });
+    return {
+      land(v) {
+        if (v === landed) return;
+        landed = v;
+        if (v) { landedAt = performance.now(); hist.length = 0; measure(); kick(); }
+        else release();
+      },
+    };
+  })();
+
+  // 등장: is-in 으로 재생하고, 끝나면 is-done 을 붙여 hover용 짧은 transition으로 전환
+  const show = (el, delay) => {
+    if (el.classList.contains('is-in')) return;
+    if (delay != null) el.style.setProperty('--rv-delay', delay + 'ms');
+    el.classList.remove('is-done');
+    el.classList.add('is-in');
+    let timer;
+    const done = (e) => {
+      if (e && (e.target !== el || e.propertyName !== 'opacity')) return;
+      el.removeEventListener('transitionend', done);
+      clearTimeout(timer);
+      if (el.classList.contains('is-in')) el.classList.add('is-done');
+    };
+    el.addEventListener('transitionend', done);
+    timer = setTimeout(done, 2000);
+  };
+  // 숨김: 화면 밖으로 나간 요소를 처음 상태로 되돌려 다음 진입 때 다시 재생
+  const hide = (el) => el.classList.remove('is-in', 'is-done');
+
+  if (motion) {
+    document.documentElement.classList.add('motion');
+
+    // 갤러리: 다섯 장을 한 단위로 감지. 보이는 카드만 순차 등장, 화면 밖 카드는 바로 준비해 둠
+    // 루프용 복제본까지 포함하도록 매번 새로 조회
+    const galleryCards = () => gallery.querySelectorAll('.card');
+    const showGallery = () => {
+      const box = gallery.getBoundingClientRect();
+      let n = 0;
+      galleryCards().forEach((card) => {
+        const r = card.getBoundingClientRect();
+        show(card, r.left >= box.left && r.left < box.right ? n++ * 100 : 0);
+      });
+    };
+    // 팀원: 실제 열 위치로 지연 계산 (2·3·4열 어디서든 한 줄이 왼쪽→오른쪽 순서)
+    const columnOf = (el) => {
+      const row = [...members].filter((m) => !m.hidden && m.offsetTop === el.offsetTop);
+      return Math.max(0, row.indexOf(el));
+    };
+    // 방향 인식 재생: 화면 밖으로 완전히 나가면(위·아래 모두) 숨김 상태로 되돌리고,
+    // 다시 들어올 때 들어오는 방향에 맞춰 재생 — 아래에서 들어오면 솟아오르고, 위에서 들어오면 내려옴.
+    // 숨김 방향(.from-top)은 보이지 않는 상태에서 즉시 바꾼 뒤 재생을 시작함.
+    const enter = (el) => {
+      const fromTop = el.dataset.side === 'top'; // 마지막으로 화면 위쪽으로 나갔던 요소 = 위에서 다시 들어옴
+      const items = el === gallery ? [...galleryCards()] : [el];
+      items.forEach((it) => { if (!it.classList.contains('is-in')) it.classList.toggle('from-top', fromTop); });
+      void el.offsetWidth;
+      if (el === gallery) showGallery();
+      else if (el.classList.contains('member')) show(el, columnOf(el) * 90);
+      else show(el);
+    };
+    const leave = (el) => (el === gallery ? galleryCards().forEach(hide) : hide(el));
+
+    // 진입: 아래에서는 화면 하단 25% 선을, 위에서는 화면 상단 10% 선을 넘을 때 재생
+    const ioIn = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) enter(e.target); });
+    }, { rootMargin: '-10% 0px -25% 0px' });
+    // 이탈: 화면 밖으로 완전히 나가면(위·아래 모두) 숨김 상태로 되돌림 → 다음 진입 때 다시 재생.
+    // 어느 쪽으로 나갔는지 기록해 두어, 메뉴 링크로 한 번에 점프해도 들어오는 방향을 정확히 판단
+    const ioOut = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) return;
+        e.target.dataset.side = e.rootBounds && e.boundingClientRect.bottom <= e.rootBounds.top ? 'top' : 'bottom';
+        leave(e.target);
+      });
+    });
+    const targets = [...document.querySelectorAll('.reveal')].filter((el) => !el.closest('.hero, #gallery'));
+    targets.push(gallery);
+    targets.forEach((el) => { ioIn.observe(el); ioOut.observe(el); });
+
+    // 히어로: 폰트가 준비되면(최대 0.6초 대기) 도형 → 로고 → 팀 이름 → 슬로건.
+    // 히어로가 화면 위로 완전히 사라졌다가 다시 보이면 같은 연출을 재생.
+    // 슬로건은 팀 미션 제목으로 내려가 있으므로 다시 숨기지 않음.
+    const hero = document.querySelector('.hero');
+    const heroCopy = hero.querySelectorAll('.reveal');
+    const heroReplay = [...heroCopy].filter((el) => !el.classList.contains('hero-slogan'));
+    let heroReady = false;
+    const playHero = () => {
+      hero.classList.add('is-go');
+      heroCopy.forEach((el) => show(el));
+    };
+    const ready = document.fonts ? document.fonts.load('800 1em "Pretendard Variable"').catch(() => {}) : 0;
+    Promise.race([ready, new Promise((r) => setTimeout(r, 600))]).then(() =>
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        playHero();
+        heroReady = true;
+      })));
+    new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (!heroReady) return;
+        if (e.isIntersecting) playHero();
+        else { hero.classList.remove('is-go'); heroReplay.forEach(hide); }
+      });
+    }).observe(hero);
+
+    // 슬로건 전환 (스크롤 연동): 두 구절(.m)이 스크롤에 따라 커지며 내려가
+    // 팀 미션 제목의 두 줄(.t) 자리에 안착. 팀 미션 제목이 화면 가운데 올 때 완료.
+    // 완료 시점에는 같은 위치·크기의 실제 제목으로 바꿔 끼워 글자를 선명하게 보여줌.
+    const missionLabel = document.querySelector('.mission-eyebrow');
+    const slots = movers.map((m) => statement.querySelector(`.t[data-line="${m.dataset.line}"]`));
+    // 문서 기준 위치 (transform 영향을 받지 않도록 offset 값 사용)
+    const docBox = (el) => {
+      let x = 0, y = 0;
+      for (let n = el; n; n = n.offsetParent) { x += n.offsetLeft; y += n.offsetTop; }
+      return { x, y, w: el.offsetWidth, h: el.offsetHeight };
+    };
+    // 위치는 매 프레임 새로 계산: 휴대폰 주소창이 숨겨지는 등 스크롤 중에 화면 높이·배치가 바뀌어도
+    // 완료 지점이 어긋나지 않게 함 (transform만 바뀌므로 offset 값을 읽는 비용은 작음)
+    let geo = null;
+    const computeGeo = () => {
+      const st = docBox(statement);
+      geo = {
+        end: Math.max(1, st.y + st.h / 2 - innerHeight / 2),
+        // lead: 둘째 줄은 조금 먼저 도착(전체의 85%)해 첫 줄과 겹치지 않게 함
+        parts: movers.map((m, i) => {
+          const a = docBox(m), b = docBox(slots[i]);
+          return { dx: b.x - a.x, dy: b.y - a.y, k: b.h / a.h, lead: i === 0 ? 1 : 0.85 };
+        }),
+      };
+    };
+    const measure = () => render();
+    const smooth = (p) => p * p * (3 - 2 * p);
+    // 도형 모서리 그룹과 흩어질 방향(각자의 모서리 쪽)
+    const corners = [['.tl', -1, -1], ['.tr', 1, -1], ['.bl', -1, 1], ['.br', 1, 1]]
+      .map(([sel, dx, dy]) => ({ el: hero.querySelector(`.shapes ${sel}`), dx, dy }));
+    let ticking = false;
+    function render() {
+      ticking = false;
+      computeGeo();
+      const clamp = (v) => Math.min(1, Math.max(0, v));
+      const p = clamp(scrollY / geo.end);
+      movers.forEach((m, i) => {
+        const g = geo.parts[i];
+        // 세로로 먼저 내려가고(0~60%) 가로 이동은 늦게(30~100%) 시작 → 둘째 줄이 옆으로 움직이며
+        // 첫 줄과 겹치는 일이 없음. 끝(1)에서는 셋 다 1이 되어 미션 제목 자리에 정확히 안착
+        const q = clamp(p / g.lead);
+        const ey = smooth(clamp(q / 0.6)), ex = smooth(clamp((q - 0.3) / 0.7)), es = smooth(q);
+        m.style.transform = q === 0 ? '' : `translate(${g.dx * ex}px, ${g.dy * ey}px) scale(${1 + (g.k - 1) * es})`;
+      });
+      // 도형 흩어짐: 슬로건이 내려가기 시작하면 도형이 모서리 쪽으로 비켜나며 작아지고 흐려짐.
+      // 히어로 아래 경계가 화면 가운데에 오기 전에 다 빠지므로, 팀 미션까지 패턴만 이어짐
+      const S = CONFIG.scatter;
+      const sc = smooth(clamp(p / S.until));
+      corners.forEach(({ el, dx, dy }) => {
+        el.style.transform = sc ? `translate(${(dx * sc * S.distance).toFixed(2)}%, ${(dy * sc * S.distance).toFixed(2)}%) scale(${(1 - S.shrink * sc).toFixed(3)})` : '';
+        el.style.opacity = sc ? (1 - sc).toFixed(3) : '';
+      });
+      // 강조색은 이동 구간의 가운데(25%~75%)에서 검정 → 빨강으로 덮임
+      slogan.style.setProperty('--pc', smooth(clamp((p - 0.25) / 0.5)).toFixed(3));
+      // '팀 미션' 라벨은 슬로건이 지나가는 경로에 있으므로 거의 도착했을 때(88% 이후) 나타남
+      missionLabel.style.opacity = smooth(clamp((p - 0.88) / 0.12)).toFixed(3);
+      const landed = p >= 0.995;
+      statement.style.opacity = landed ? '1' : '0';
+      movers.forEach((m) => { m.style.opacity = landed ? '0' : ''; });
+      skew.land(landed); // R-8-3: 안착하면 기울기 연출 시작, 풀리면 해제
+    }
+    addEventListener('scroll', () => {
+      if (!ticking) { ticking = true; requestAnimationFrame(render); }
+    }, { passive: true });
+    addEventListener('resize', measure);
+    measure();
+    Promise.resolve(ready).then(measure);
+    addEventListener('load', measure);
+  }
+
+  // 팀원 한 줄 소개: 커서가 없는 기기(모바일)는 탭으로 열고 닫음
+  const noHover = matchMedia('(hover: none)');
+  const closeQuips = () => members.forEach((m) => m.classList.remove('is-open'));
+  list.addEventListener('click', (e) => {
+    if (!noHover.matches) return;
+    const card = e.target.closest('.member');
+    if (!card) return;
+    const wasOpen = card.classList.contains('is-open');
+    closeQuips();
+    if (!wasOpen) card.classList.add('is-open');
+  });
+  document.addEventListener('click', (e) => { if (!e.target.closest('.member')) closeQuips(); });
+
+  /* ── R-8-2 업무 카드 자동전환 + 진행바 ────────────────────────
+     화면에 보이면 5초마다 다음 카드로. 마우스를 올려도 계속 진행하고, 키보드 포커스가 있을 때만 멈춤(접근성).
+     스와이프·점 누르기 → 그 카드부터 다시 5초. 동작 줄이기에서는 자동전환 없이 위치 표시만.
+     루프: 원본 카드 앞뒤에 복제본을 붙여 두고, 복제본 위치에 도착하면 이동이 끝난 순간
+     같은 모양의 원본 위치로 보이지 않게 순간이동 → 마지막 다음에 처음 카드가 같은 방향으로 바로 이어짐. */
+  (() => {
+    const C = CONFIG.carousel;
+    const track = document.getElementById('track');
+    const pager = document.getElementById('pager');
+    const originals = [...track.querySelectorAll('.card')];
+    const n = originals.length;
+    const auto = motion;
+    const clone = (card) => {
+      const c = card.cloneNode(true);
+      c.classList.remove('is-in', 'is-done');
+      c.style.removeProperty('--rv-delay');
+      c.setAttribute('aria-hidden', 'true');
+      return c;
+    };
+    originals.forEach((c) => track.append(clone(c)));               // 뒤: 0~4 복제
+    [...originals].reverse().forEach((c) => track.prepend(clone(c))); // 앞: 0~4 복제
+    // 트랙 안 위치 = n + index (index는 -1 ~ n 사이를 잠깐 오가고, 끝나면 0 ~ n-1로 정리)
+    let index = 0, elapsed = 0, base = 0, raf = 0, lastT = 0;
+    let inView = false, focused = false, dragging = false;
+
+    const dots = originals.map((card, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.setAttribute('aria-label', `${i + 1}번째 업무: ${card.querySelector('h3').textContent}`);
+      b.innerHTML = '<span class="bar"><span class="fill"></span></span>';
+      b.addEventListener('click', () => goTo(i));
+      pager.append(b);
+      return b;
+    });
+    const fills = dots.map((d) => d.querySelector('.fill'));
+    const logical = () => ((index % n) + n) % n;
+
+    const stepPx = () => track.children[1].offsetLeft - track.children[0].offsetLeft;
+    const place = (animate) => {
+      base = -(n + index) * stepPx();
+      if (!animate) track.classList.add('is-jumping');
+      track.style.transform = `translateX(${base}px)`;
+      if (!animate) { track.getBoundingClientRect(); track.classList.remove('is-jumping'); }
+    };
+    // 복제본 위치에 있으면 같은 모양의 원본 위치로 순간이동
+    const normalize = () => {
+      if (index >= 0 && index < n) return;
+      index = logical();
+      place(false);
+    };
+    function goTo(i) {
+      normalize();
+      index = i;
+      elapsed = 0;
+      place(true);
+      dots.forEach((d, k) => d.setAttribute('aria-current', String(k === logical())));
+      fills.forEach((f) => { f.style.transform = 'scaleX(0)'; });
+      if (!motion) normalize(); // 동작 줄이기: 이동 애니메이션이 없으므로 바로 정리
+    }
+    track.addEventListener('transitionend', (e) => { if (e.target === track && e.propertyName === 'transform') normalize(); });
+
+    const running = () => auto && inView && !focused && !dragging && !document.hidden;
+    const tick = (now) => {
+      raf = 0;
+      const dt = lastT ? Math.min(100, now - lastT) : 0;
+      lastT = now;
+      if (running()) {
+        elapsed += dt;
+        if (elapsed >= C.interval) goTo(index + 1);
+        fills[logical()].style.transform = `scaleX(${Math.min(1, elapsed / C.interval).toFixed(4)})`;
+      }
+      if (auto && inView) raf = requestAnimationFrame(tick);
+      else lastT = 0;
+    };
+    const kick = () => { if (!raf && auto && inView) { lastT = 0; raf = requestAnimationFrame(tick); } };
+
+    new IntersectionObserver(([e]) => { inView = e.isIntersecting; kick(); }, { threshold: 0.35 }).observe(gallery);
+    document.addEventListener('visibilitychange', kick);
+    // 키보드 포커스일 때만 멈춤 (마우스로 점을 누른 뒤에는 계속 진행)
+    [gallery, pager].forEach((el) => {
+      el.addEventListener('focusin', (e) => { focused = e.target.matches(':focus-visible'); });
+      el.addEventListener('focusout', () => { focused = false; });
+    });
+    gallery.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') { e.preventDefault(); goTo(index + 1); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(index - 1); }
+    });
+
+    // 스와이프 (손가락·마우스 드래그). 세로 움직임이 크면 페이지 스크롤로 넘김. 양쪽 모두 끝없이 이어짐
+    let pid = null, sx = 0, sy = 0, dx = 0, decided = false;
+    gallery.addEventListener('dragstart', (e) => e.preventDefault());
+    gallery.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      pid = e.pointerId; sx = e.clientX; sy = e.clientY; dx = 0; decided = false;
+    });
+    gallery.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== pid) return;
+      const mx = e.clientX - sx, my = e.clientY - sy;
+      if (!decided) {
+        if (Math.abs(mx) < 6 && Math.abs(my) < 6) return;
+        decided = true;
+        if (Math.abs(mx) <= Math.abs(my)) { pid = null; return; }
+        dragging = true;
+        normalize();
+        gallery.setPointerCapture(pid);
+        track.classList.add('is-dragging');
+      }
+      dx = mx;
+      track.style.transform = `translateX(${base + dx}px)`;
+    });
+    const end = (e) => {
+      if (e.pointerId !== pid) return;
+      pid = null;
+      if (!dragging) return;
+      dragging = false;
+      track.classList.remove('is-dragging');
+      if (dx < -C.swipe) goTo(index + 1);
+      else if (dx > C.swipe) goTo(index - 1);
+      else goTo(index);
+    };
+    gallery.addEventListener('pointerup', end);
+    gallery.addEventListener('pointercancel', end);
+    addEventListener('resize', () => { normalize(); place(false); });
+    place(false);
+    goTo(0);
+  })();
+
+  /* ── R-8-1 커서 반응 패턴 (히어로 + 팀 미션) ─────────────────────
+     32px 칸마다 원·사각형·마름모를 고정 배치(시드 고정)해 두고, 평소엔 투명.
+     커서가 지나간 주변만 잠깐 나타났다 1초 안에 사라지고, 몇 초마다 물결이 퍼짐(모바일은 물결만).
+     캔버스는 히어로 안에 있지만 높이를 팀 미션 아래쪽까지 늘려 두 영역을 하나로 덮음. */
+  (() => {
+    const C = CONFIG.pattern;
+    const hero = document.querySelector('.hero');
+    const mission = document.querySelector('.mission');
+    const canvas = hero.querySelector('.pattern');
+    const ctx = canvas.getContext('2d');
+    // 글자 뒤쪽은 패턴을 연하게: 히어로 문구, 팀 미션 제목
+    // 블록 전체가 아니라 실제 글자 영역(로고, 제목 단어, 슬로건 구절, 미션 제목 줄)만 → 빈 공간에서는 흔적이 또렷하게
+    const dimTargets = [
+      hero.querySelector('.hero-logo'),
+      ...hero.querySelectorAll('.hero-title > .w'),
+      ...movers,
+      ...statement.querySelectorAll('.t'),
+    ];
+    const brand = getComputedStyle(document.documentElement).getPropertyValue('--brand').trim();
+    const seeded = (seed) => () => {                           // mulberry32
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    let W = 0, H = 0, cols = 0, rows = 0, cells = [], centers = [], dims = [];
+
+    const build = () => {
+      const hr = hero.getBoundingClientRect();
+      W = hr.width; H = mission.getBoundingClientRect().bottom - hr.top;
+      canvas.style.height = `${H}px`;
+      const dpr = Math.min(2, devicePixelRatio || 1);
+      canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cols = Math.ceil(W / C.cell); rows = Math.ceil(H / C.cell);
+      const rand = seeded(C.seed);
+      // 사각형 무리용 값 노이즈
+      const gx = Math.ceil(cols / C.noiseScale) + 2, gy = Math.ceil(rows / C.noiseScale) + 2;
+      const grid = Array.from({ length: gx * gy }, rand);
+      const sm = (t) => t * t * (3 - 2 * t);
+      const noise = (x, y) => {
+        const fx = x / C.noiseScale, fy = y / C.noiseScale, ix = Math.floor(fx), iy = Math.floor(fy);
+        const tx = sm(fx - ix), ty = sm(fy - iy), g = (i, j) => grid[(iy + j) * gx + ix + i];
+        const a = g(0, 0) + (g(1, 0) - g(0, 0)) * tx, b = g(0, 1) + (g(1, 1) - g(0, 1)) * tx;
+        return a + (b - a) * ty;
+      };
+      const prevCells = cells;
+      cells = [];
+      for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+        const edge = Math.min(y, rows - 1 - y);              // 위아래 가장자리 3줄은 확률적으로 비움
+        const emptyP = [0.7, 0.45, 0.2][edge] ?? 0;
+        const r1 = rand(), r2 = rand(), r3 = rand();
+        const type = r1 < emptyP ? -1 : r2 < C.diamondRatio ? 2 : noise(x, y) > C.squareNoise ? 1 : 0;
+        cells.push({ x, y, type, e: 0, ws: 0, wd: C.waveLife[0] + r3 * (C.waveLife[1] - C.waveLife[0]) });
+      }
+      if (prevCells.length === cells.length) cells.forEach((c, i) => { c.e = prevCells[i].e; c.ws = prevCells[i].ws; });
+      const filled = cells.filter((c) => c.type >= 0);
+      // 물결 중심 후보: 영역이 히어로보다 넓어진 만큼 비례해서 늘림
+      const count = Math.round(C.waveCenters * (H / Math.max(1, hr.height)));
+      centers = Array.from({ length: Math.min(count, filled.length) }, () => filled[Math.floor(rand() * filled.length)]);
+      dims = dimTargets.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { l: r.left - hr.left - 14, t: r.top - hr.top - 14, r: r.right - hr.left + 14, b: r.bottom - hr.top + 14 };
+      });
+      if (!motion) drawStatic();
+    };
+
+    // trail: 커서 흔적이 주도하는 칸이면 0~1 (진한 회색 + 최대 1.3배 확대), 아니면 0
+    const shape = (c, a, trail = 0) => {
+      const cx = c.x * C.cell + C.cell / 2, cy = c.y * C.cell + C.cell / 2;
+      const h = ((c.type === 2 ? C.diamondSize : C.size) / 2) * (1 + C.trailGrow * trail);
+      if (dims.some((d) => cx > d.l && cx < d.r && cy > d.t && cy < d.b)) a *= C.textDim;
+      if (a < 0.01) return;
+      ctx.globalAlpha = a;
+      if (c.type === 0) {
+        ctx.fillStyle = trail ? C.trailColor.circle : C.color.circle;
+        ctx.beginPath(); ctx.arc(cx, cy, h, 0, Math.PI * 2); ctx.fill();
+      } else if (c.type === 1) {
+        ctx.fillStyle = trail ? C.trailColor.square : C.color.square;
+        ctx.fillRect(cx - h, cy - h, h * 2, h * 2);
+      } else {
+        // 마름모(◆): 꼭짓점 사이 너비·높이 = 마름모 크기, 속을 채운 메인 컬러
+        ctx.fillStyle = brand;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - h); ctx.lineTo(cx + h, cy); ctx.lineTo(cx, cy + h); ctx.lineTo(cx - h, cy);
+        ctx.closePath(); ctx.fill();
+      }
+    };
+    // 동작 줄이기: 물결 중심 칸들만 정적으로
+    const drawStatic = () => {
+      ctx.clearRect(0, 0, W, H);
+      centers.forEach((c) => shape(c, c.type === 2 ? 0.6 : 0.6 * C.grayMax));
+      ctx.globalAlpha = 1;
+    };
+    const ro = new ResizeObserver(build);
+    ro.observe(hero);
+    ro.observe(mission);
+    if (!motion) return;
+
+    // 물결: 앞 25% 나타남(ease-in-out) → 유지 → 마지막 30% 사라짐
+    const io = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+    const waveA = (c, now) => {
+      if (!c.ws) return 0;
+      const u = (now - c.ws) / c.wd;
+      if (u <= 0 || u >= 1) return 0;
+      if (u < 0.25) return io(u / 0.25);
+      if (u > 0.7) return 1 - io((u - 0.7) / 0.3);
+      return 1;
+    };
+    let active = false, visible = false, raf = 0, lastT = 0;
+    const spawn = () => {
+      if (!active || !centers.length) return;
+      // 지금 화면에 보이는 범위의 중심 후보에서 고름 (보이지 않는 곳에서 물결이 낭비되지 않게)
+      const top = -canvas.getBoundingClientRect().top, bottom = top + innerHeight;
+      const seen = centers.filter((p) => p.y * C.cell >= top && p.y * C.cell <= bottom);
+      const pool = seen.length ? seen : centers;
+      const c = pool[Math.floor(Math.random() * pool.length)];
+      const R = C.waveRadius[0] + Math.random() * (C.waveRadius[1] - C.waveRadius[0]);
+      const now = performance.now();
+      for (let y = Math.max(0, Math.floor(c.y - R)); y <= Math.min(rows - 1, Math.ceil(c.y + R)); y++) {
+        for (let x = Math.max(0, Math.floor(c.x - R)); x <= Math.min(cols - 1, Math.ceil(c.x + R)); x++) {
+          const d = Math.hypot(x - c.x, y - c.y);
+          const cell = cells[y * cols + x];
+          if (d > R || cell.type < 0 || waveA(cell, now) > 0) continue; // 이미 보이는 칸은 그대로
+          cell.ws = now + (d / R) * C.waveSpread;
+        }
+      }
+    };
+    for (let i = 0; i < C.waveTimers; i++) {
+      const loop = () => setTimeout(() => { spawn(); loop(); }, C.waveEvery[0] + Math.random() * (C.waveEvery[1] - C.waveEvery[0]));
+      loop();
+    }
+
+    // 커서: 주변 3×3칸 중 48px 이내에 에너지. 빠른 움직임은 16px 간격으로 보간(최대 10단계)
+    const energize = (x, y) => {
+      const gx0 = Math.floor(x / C.cell), gy0 = Math.floor(y / C.cell);
+      for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+        const gx = gx0 + i, gy = gy0 + j;
+        if (gx < 0 || gy < 0 || gx >= cols || gy >= rows) continue;
+        const cell = cells[gy * cols + gx];
+        if (cell.type < 0) continue;
+        const d = Math.hypot(gx * C.cell + C.cell / 2 - x, gy * C.cell + C.cell / 2 - y);
+        if (d < C.hoverRadius) cell.e = Math.min(1, cell.e + C.hoverGain * (1 - d / C.hoverRadius));
+      }
+    };
+    let last = null;
+    const onMove = (e) => {
+      if (e.pointerType === 'touch') return;
+      const cr = canvas.getBoundingClientRect();
+      const x = e.clientX - cr.left, y = e.clientY - cr.top, now = performance.now();
+      if (y < 0 || y > H) { last = null; return; }
+      if (last && now - last.t < 150) {
+        const ddx = x - last.x, ddy = y - last.y;
+        const steps = Math.min(C.interpMax, Math.floor(Math.hypot(ddx, ddy) / C.interpStep));
+        for (let i = 1; i <= steps; i++) energize(last.x + (ddx * i) / (steps + 1), last.y + (ddy * i) / (steps + 1));
+      }
+      energize(x, y);
+      last = { x, y, t: now };
+    };
+    [hero, mission].forEach((el) => el.addEventListener('pointermove', onMove));
+    mission.addEventListener('pointerleave', () => { last = null; });
+
+    const frame = (now) => {
+      raf = 0;
+      if (!active) return;
+      const dt = lastT ? Math.min(0.1, (now - lastT) / 1000) : 0;
+      lastT = now;
+      ctx.clearRect(0, 0, W, H);
+      for (const c of cells) {
+        if (c.type < 0) continue;
+        if (c.e > 0) c.e = Math.max(0, c.e - C.decayPerSec * dt);
+        // 회색 도형: 자동 물결은 은은하게(grayMax), 커서 흔적은 또렷하게(cursorMax). 빨간 마름모는 그대로
+        const w = waveA(c, now);
+        if (c.type === 2) {
+          const a = Math.max(w, c.e);
+          if (a > 0.01) shape(c, a, c.e >= w ? c.e : 0);
+        } else {
+          const aw = w * C.grayMax, ae = c.e * C.cursorMax;
+          if (ae >= aw && ae > 0.01) shape(c, ae, c.e);   // 커서 흔적: 진하고 크게
+          else if (aw > 0.01) shape(c, aw);                // 자동 물결: 은은하게
+        }
+      }
+      ctx.globalAlpha = 1;
+      raf = requestAnimationFrame(frame);
+    };
+    // 패턴 영역(히어로~팀 미션)이 보이고 탭이 활성일 때만 그림
+    const update = () => {
+      active = visible && !document.hidden;
+      if (active && !raf) { lastT = 0; raf = requestAnimationFrame(frame); }
+    };
+    new IntersectionObserver(([e]) => { visible = e.isIntersecting; update(); }).observe(canvas);
+    document.addEventListener('visibilitychange', update);
+  })();
+
+  /* ── 히어로 도형 밀려나기 ─────────────────────────────────────
+     커서가 도형에 닿거나 가장자리 가까이 오면 도형이 커서 반대쪽으로 살짝 밀려나고, 떠나면 부드럽게 돌아옴.
+     도형마다 감싼 .push 층에만 적용 → 등장(.shape)·떠다니기(.float)·흩어짐(svg)과 서로 간섭하지 않음 */
+  (() => {
+    if (!motion || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    const C = CONFIG.push;
+    const hero = document.querySelector('.hero');
+    const items = [...hero.querySelectorAll('.push')].map((el) => ({
+      el, shape: el.querySelector('.shape'), svg: el.ownerSVGElement, ox: 0, oy: 0,
+    }));
+    let cx = -1e5, cy = -1e5, inHero = false, raf = 0, lastT = 0;
+    const frame = (now) => {
+      raf = 0;
+      const dt = lastT ? Math.min(50, now - lastT) : 16;
+      lastT = now;
+      const active = hero.classList.contains('is-go');   // 등장이 시작된 뒤에만
+      const k = 1 - Math.exp(-dt / C.ease);
+      let moving = false;
+      items.forEach((it) => {
+        let tx = 0, ty = 0;
+        if (active && inHero) {
+          const r = it.shape.getBoundingClientRect();
+          const R = (Math.min(r.width, r.height) / 2) * 0.85;          // 도형의 대략적인 반지름(화면 px)
+          const mx = r.left + r.width / 2 - it.ox, my = r.top + r.height / 2 - it.oy; // 밀리기 전 중심
+          const dx = mx - cx, dy = my - cy, d = Math.hypot(dx, dy) || 1;
+          const s = d <= R ? 1 : Math.max(0, 1 - (d - R) / C.reach);     // 안쪽이면 최대, 가장자리 밖은 점점 약하게
+          if (s > 0) {
+            const amt = Math.max(C.min, Math.min(C.max, C.max + 4 - R * 0.05)) * s; // 작은 도형일수록 많이 밀림
+            tx = (dx / d) * amt; ty = (dy / d) * amt;
+          }
+        }
+        it.ox += (tx - it.ox) * k; it.oy += (ty - it.oy) * k;
+        const unit = it.svg.clientWidth / it.svg.viewBox.baseVal.width || 1;  // 화면 px → SVG 좌표 단위
+        it.el.style.transform = Math.abs(it.ox) + Math.abs(it.oy) < 0.05
+          ? '' : `translate(${(it.ox / unit).toFixed(2)}px, ${(it.oy / unit).toFixed(2)}px)`;
+        if (Math.abs(tx - it.ox) > 0.05 || Math.abs(ty - it.oy) > 0.05) moving = true;
+      });
+      if (moving || inHero) raf = requestAnimationFrame(frame);
+      else lastT = 0;
+    };
+    const kick = () => { if (!raf) raf = requestAnimationFrame(frame); };
+    addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      cx = e.clientX; cy = e.clientY;
+      const hr = hero.getBoundingClientRect();
+      inHero = cx >= hr.left && cx <= hr.right && cy >= hr.top && cy <= hr.bottom;
+      kick();
+    }, { passive: true });
+    document.documentElement.addEventListener('mouseleave', () => { inHero = false; kick(); });
+  })();
+
+  /* ── R-8-4 마름모 커서 팔로워 ─────────────────────────────── */
+  (() => {
+    if (!motion || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    const C = CONFIG.follower;
+    const el = document.createElement('div');
+    el.className = 'cursor-dia';
+    el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = '<span class="core"><span class="fill"></span><span class="ring"></span></span>';
+    document.body.append(el);
+    const core = el.querySelector('.core');
+    const zones = [document.getElementById('work'), document.getElementById('team')];
+    let tx = 0, ty = 0, x = 0, y = 0, seen = false, raf = 0, lastT = 0;
+    const inZone = () => zones.some((z) => {
+      const r = z.getBoundingClientRect();
+      return tx >= r.left && tx <= r.right && ty >= r.top && ty <= r.bottom;
+    });
+
+    // ── 전환 연출 "파동": 들어갈 때 커서 자리에서 마름모 윤곽선이 한 번 퍼지며 커서가 톡 튀어나오고,
+    //    돌아갈 때는 윤곽선이 커서 쪽으로 오므라들며 커서가 작아져 사라짐 ──
+    const ripple = (cx, cy, inward) => {
+      const r = document.createElement('span');
+      r.className = 'cdia-ripple';
+      r.setAttribute('aria-hidden', 'true');
+      document.body.append(r);
+      const from = inward ? 2.6 : 0.3, to = inward ? 0.3 : 3.2;
+      r.animate([
+        { transform: `translate(${cx}px, ${cy}px) rotate(45deg) scale(${from})`, opacity: inward ? 0 : 0.9 },
+        { opacity: inward ? 0.6 : 0.5, offset: 0.3 },
+        { transform: `translate(${cx}px, ${cy}px) rotate(45deg) scale(${to})`, opacity: 0 },
+      ], { duration: inward ? 380 : 560, easing: 'cubic-bezier(.2, .7, .3, 1)' }).onfinish = () => r.remove();
+    };
+    // 커서 크기 애니메이션은 항상 하나만: 새로 시작할 때 이전 것을 정리해야, 나갈 때의 '작아진 상태'가
+    // 남아 다시 들어온 뒤 커서가 사라지는 일이 없음
+    let coreAnim = null;
+    const playCore = (frames, opts) => {
+      if (coreAnim) coreAnim.cancel();
+      coreAnim = core.animate(frames, opts);
+    };
+    let on = false, lastSwitch = -1e4;
+    const setOn = (v) => {
+      if (v === on) return;
+      on = v;
+      const now = performance.now();
+      const play = now - lastSwitch > 300;   // 경계에서 왔다 갔다 할 때 연달아 터지지 않게
+      lastSwitch = now;
+      if (v) {
+        x = tx; y = ty; el.style.transform = `translate(${x}px, ${y}px)`;
+        if (coreAnim) { coreAnim.cancel(); coreAnim = null; }   // 들어오면 커서는 항상 보이는 크기로
+      }
+      el.classList.toggle('is-on', v);
+      if (!play) return;
+      if (v) {
+        ripple(tx, ty, false);
+        playCore([{ transform: 'scale(0)' }, { transform: 'scale(1.3)', offset: 0.6 }, { transform: 'scale(1)' }],
+          { duration: 320, easing: 'ease-out' });
+      } else {
+        ripple(x, y, true);
+        playCore([{ transform: 'scale(1)' }, { transform: 'scale(0)' }], { duration: 160, easing: 'ease-in', fill: 'forwards' });
+      }
+    };
+
+    // 커서 아래 요소에 따라 모양 결정: 카드 위 → 윤곽선, 팀원 카드(빨개짐) 위 → 흰 윤곽선
+    const sync = (target) => {
+      setOn(inZone());
+      const card = target && target.closest ? target.closest('.card, .member') : null;
+      el.classList.toggle('is-card', !!card);
+      el.classList.toggle('is-red', !!(card && card.classList.contains('member')));
+    };
+    const frame = (now) => {
+      raf = 0;
+      const dt = lastT ? Math.min(50, now - lastT) : 16;
+      lastT = now;
+      const k = 1 - Math.exp(-dt / C.lag);
+      x += (tx - x) * k; y += (ty - y) * k;
+      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      if (Math.abs(tx - x) > 0.1 || Math.abs(ty - y) > 0.1) raf = requestAnimationFrame(frame);
+      else lastT = 0;
+    };
+    const kick = () => { if (!raf) raf = requestAnimationFrame(frame); };
+    addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      tx = e.clientX; ty = e.clientY;
+      if (!seen) { x = tx; y = ty; seen = true; }
+      sync(e.target);
+      kick();
+    }, { passive: true });
+    // 마우스를 가만히 둔 채 스크롤해도 영역·카드 판정을 갱신
+    addEventListener('scroll', () => { if (seen) sync(document.elementFromPoint(tx, ty)); }, { passive: true });
+    document.documentElement.addEventListener('mouseleave', () => { on = false; el.classList.remove('is-on'); });
+  })();
+
+  // 팀원 아바타: 이미지를 불러오면 이니셜을 숨기고, 파일이 없거나 실패하면 이니셜을 그대로 둠
+  document.querySelectorAll('.avatar img').forEach((img) => {
+    const mark = () => img.parentElement.classList.add('has-img');
+    if (img.complete && img.naturalWidth) mark();
+    else {
+      img.addEventListener('load', mark, { once: true });
+      img.addEventListener('error', () => img.remove(), { once: true });
+    }
+  });
+})();
+</script>
+
