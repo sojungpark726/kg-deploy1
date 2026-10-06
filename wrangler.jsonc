@@ -1,0 +1,18 @@
+/**
+ * Cloudflare Workers 정적 사이트 배포 설정 (Worker 코드 없이 정적 파일만)
+ * 배포: wrangler deploy → build.command가 public/을 만든 뒤 그 폴더만 업로드
+ * https://developers.cloudflare.com/workers/static-assets/
+ */
+{
+	"$schema": "https://unpkg.com/wrangler/config-schema.json",
+	"name": "kg-app-design",
+	"compatibility_date": "2026-10-01",
+	// https://kg-app-design.landing-test.workers.dev 로 공개
+	"workers_dev": true,
+	"build": {
+		"command": "node scripts/build-site.mjs"
+	},
+	"assets": {
+		"directory": "./public/"
+	}
+}

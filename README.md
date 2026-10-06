@@ -20,4 +20,5 @@
 
 ## 배포
 
-`main` 브랜치에 push하면 Vercel이 자동으로 배포합니다.
+- **Vercel:** `main` 브랜치에 push하면 자동으로 배포합니다. https://kg-deploy1-iota.vercel.app/
+- **Cloudflare Workers:** `npx wrangler deploy`로 직접 배포합니다(`wrangler.jsonc`, `scripts/build-site.mjs`). https://kg-app-design.landing-test.workers.dev

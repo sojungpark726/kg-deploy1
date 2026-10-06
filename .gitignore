@@ -5,6 +5,7 @@
 # Vercel 빌드 결과물 (vercel.json의 buildCommand가 만듦)
 public/
 .vercel/
+.wrangler/
 
 # Claude Code 개인 설정
 .claude/settings.local.json

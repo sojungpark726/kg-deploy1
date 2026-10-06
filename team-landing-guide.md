@@ -432,6 +432,7 @@ R-8-1 패턴이 끝나는 3번 주요 업무부터는 배경을 채우는 대신
 | 이미지 원본 / 웹용 사본 | `assets/` / `assets/web/` |
 | 폰트 | `fonts/PretendardVariable.woff2` |
 | 배포 사이트 (Vercel) | https://kg-deploy1-iota.vercel.app/ (깃허브 `sojungpark726/kg-deploy1`의 main에 push하면 자동 배포, 설정은 `vercel.json`) |
+| 배포 사이트 (Cloudflare Workers) | https://kg-app-design.landing-test.workers.dev (자동 배포 아님: `npx wrangler deploy`로 직접 배포. 설정은 `wrangler.jsonc`, 배포 파일은 `scripts/build-site.mjs`가 `public/`에 모음) |
 | 링크 미리보기(OG) 이미지 | `assets/web/og-image.png` (1200×630). 실제 사이트 히어로 캡처(`assets/og-capture.png`)를 `gen_og.py`로 이미지 모델에 넣어 다듬은 결과(`assets/og-image-raw.png`, 1536×1024)를 가운데 기준으로 자름 |
 | 사이트 아이콘 | `assets/web/favicon.svg`, `assets/web/apple-touch-icon.png` (빨간 마름모) |
 
