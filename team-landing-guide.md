@@ -431,6 +431,16 @@ R-8-1 패턴이 끝나는 3번 주요 업무부터는 배경을 채우는 대신
 | 이미지 생성 스크립트 | `gen_assets.py` (OpenAI `gpt-image-2.5-sunburst`, 키는 `.env`의 `OPENAI_API_KEY`) |
 | 이미지 원본 / 웹용 사본 | `assets/` / `assets/web/` |
 | 폰트 | `fonts/PretendardVariable.woff2` |
+| 배포 사이트 (Vercel) | https://kg-deploy1-iota.vercel.app/ (깃허브 `sojungpark726/kg-deploy1`의 main에 push하면 자동 배포, 설정은 `vercel.json`) |
+| 링크 미리보기(OG) 이미지 | `assets/web/og-image.png` (1200×630). 실제 사이트 히어로 캡처(`assets/og-capture.png`)를 `gen_og.py`로 이미지 모델에 넣어 다듬은 결과(`assets/og-image-raw.png`, 1536×1024)를 가운데 기준으로 자름 |
+| 사이트 아이콘 | `assets/web/favicon.svg`, `assets/web/apple-touch-icon.png` (빨간 마름모) |
+
+**링크 공유 정보** (`artifact.html` 맨 위 meta 태그)
+
+- **사이트 이름:** 키글 App Design
+- **제목:** App Design 팀 · 신속한 실행 정확한 디자인
+- **설명:** 키글 앱디자인팀의 미션과 주요 업무, 팀원을 한 페이지에 소개합니다. 함께 일하기 전에 먼저 만나 보세요.
+- 배포 주소가 바뀌면 `og:url`, `og:image`, `twitter:image`, `canonical`의 주소도 함께 바꿔야 합니다(전체 주소여야 미리보기 이미지가 나옴).
 
 **현재 상태 요약**
 
