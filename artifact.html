@@ -146,16 +146,18 @@
     padding: .1em .12em .3em; margin: -.1em -.12em -.3em;
   }
   .mtitle .c { display: inline-block; }
-  .mtitle .ich { position: relative; display: inline-block; }
+  .mtitle .ich, .localnav .brand .ich { position: relative; display: inline-block; }
   /* i 점 자리의 빨간 마름모 (정사각형을 45° 돌림, 꼭짓점 사이 약 0.23em).
      위치는 원래 i 점 중심에 맞춤: 음수 자간 때문에 글자 칸 중심보다 i 기둥이 (자간의 절반만큼) 오른쪽에 있고,
-     세로 위치는 제목의 행간에 따라 달라지므로 제목마다 --idot-x / --idot-top 으로 보정 */
-  .mtitle .idot {
+     세로 위치는 제목의 행간에 따라 달라지므로 제목마다 --idot-x / --idot-top 으로 보정
+     (가로 = -자간/2, 세로 ≈ .10em + (행간 - 1)/2). 상단 바 팀 이름도 같은 마름모를 씀 (등장 연출 없음) */
+  .mtitle .idot, .localnav .brand .idot {
     position: absolute; left: calc(50% + var(--idot-x, .0275em)); top: var(--idot-top, .09em);
     width: .16em; height: .16em; border-radius: .015em; background: var(--brand);
     transform: translate(-50%, 0) rotate(45deg);
   }
   .h2.mtitle { --idot-x: .0175em; --idot-top: .16em; }
+  .localnav .brand { --idot-x: .01em; --idot-top: .35em; }
   /* 슬로건: 두 구절(.m)이 각각 팀 미션 제목의 한 줄로 이동.
      글꼴 굵기·자간·행간을 미션 제목과 같은 비율로 맞춰, 크기만 키우면 정확히 겹치게 함 */
   .hero-slogan { font-size: clamp(22px, 2.8vw, 36px); font-weight: 800; letter-spacing: -0.05em; line-height: 1.08; }
@@ -454,7 +456,7 @@
 
 <nav class="localnav" aria-label="섹션 이동">
   <div class="wrap">
-    <a class="brand" href="#top">App Design</a>
+    <a class="brand" href="#top" aria-label="App Design">App Des<span class="ich">ı<span class="idot" aria-hidden="true"></span></span>gn</a>
     <ul>
       <li><a href="#mission">미션</a></li>
       <li><a href="#work">주요 업무</a></li>
